@@ -31,6 +31,17 @@ function App() {
       })),
     };
   }, [updatedAgents, selectedScenario]);
+  const totalDemand = useMemo(() => {
+    return updatedAgents.reduce((total, agent) => total + agent.demand, 0);
+  }, [updatedAgents]);
+  const totalAllocated = useMemo(() => {
+    return allocationResult
+      ? allocationResult.reduce((total, allocation) => total + allocation.allocated, 0)
+      : 0;
+  }, [allocationResult]);
+  const totalDeficit = useMemo(() => {
+    return totalDemand - totalAllocated;
+  }, [totalDemand, totalAllocated]);
   const handleSimulate = async () => {
     setHasSimulated(true);
     const result = await getAllocation(allocationInput);
@@ -66,6 +77,19 @@ function App() {
       </section>
 
       <pre>{JSON.stringify(allocationInput, null, 2)}</pre>
+
+      <section>
+        <h2>Summary</h2>
+        <div>Total Demand: {totalDemand}</div>
+        {allocationResult && (
+          <>
+            <div>Total Allocated: {totalAllocated}</div>
+            <div style={{ color: totalDeficit > 0 ? "red" : "green" }}>
+              Total Deficit: {totalDeficit}
+            </div>
+          </>
+        )}
+      </section>
 
       <section>
         <h2>Agent list</h2>
