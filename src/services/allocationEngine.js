@@ -9,6 +9,27 @@ function getPriorityWeight(priority) {
   return priorityWeights[priority] ?? 0;
 }
 
+function formatPower(value) {
+  return Number(value.toFixed(2));
+}
+
+function getReasoning(agent, allocated) {
+  const demand = agent.demand;
+  const percentage = demand > 0 ? Math.round((allocated / demand) * 100) : 0;
+  const allocatedPower = formatPower(allocated);
+  const demandPower = formatPower(demand);
+
+  if (allocated === demand) {
+    return `Fully allocated (${allocatedPower}/${demandPower} MW, 100%) due to ${agent.priority} priority`;
+  }
+
+  if (allocated > 0) {
+    return `Allocated ${allocatedPower}/${demandPower} MW (~${percentage}%) due to limited power after serving higher priority services`;
+  }
+
+  return `0/${demandPower} MW (0%) allocated due to insufficient resources and lower priority`;
+}
+
 export function allocateResources(input) {
   const { scenario, severity, totalPower, agents } = input;
   const severityMultiplier = 1 + severity / 10;
@@ -47,7 +68,7 @@ export function allocateResources(input) {
         results.push({
           name: agent.name,
           allocated: agent.demand,
-          reasoning: `Fully satisfied due to ${agent.priority} priority`,
+          reasoning: getReasoning(agent, agent.demand),
         });
       }
 
@@ -58,15 +79,11 @@ export function allocateResources(input) {
     for (const agent of group) {
       const allocated =
         remainingPower > 0 ? (agent.demand / groupDemand) * remainingPower : 0;
-      const reasoning =
-        allocated > 0
-          ? 'Partially allocated due to limited power and higher priority demands'
-          : 'No allocation due to insufficient resources and lower priority';
 
       results.push({
         name: agent.name,
         allocated,
-        reasoning,
+        reasoning: getReasoning(agent, allocated),
       });
     }
 
