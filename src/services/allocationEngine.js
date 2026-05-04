@@ -29,20 +29,22 @@ export function allocateResources(input) {
   }));
 
   for (const agent of adjustedAgents) {
-    if (remainingPower <= 0) {
-      break;
-    }
+    let allocated = 0;
+    let reasoning = 'No allocation due to insufficient resources and lower priority';
 
-    const allocated =
-      remainingPower >= agent.demand ? agent.demand : remainingPower;
+    if (remainingPower >= agent.demand) {
+      allocated = agent.demand;
+      reasoning = `Fully satisfied due to ${agent.priority} priority`;
+    } else if (remainingPower > 0) {
+      allocated = remainingPower;
+      reasoning =
+        'Partially allocated due to limited power and higher priority demands';
+    }
 
     results.push({
       name: agent.name,
       allocated,
-      reasoning:
-        allocated === agent.demand
-          ? `Allocated full demand based on ${agent.priority} priority.`
-          : `Allocated remaining power based on ${agent.priority} priority.`,
+      reasoning,
     });
 
     remainingPower -= allocated;
