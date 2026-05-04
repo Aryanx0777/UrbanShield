@@ -25,7 +25,7 @@ export function allocateResources(input) {
   );
   const adjustedAgents = sortedAgents.map((agent) => ({
     ...agent,
-    adjustedDemand: agent.baseDemand * severityMultiplier,
+    demand: agent.baseDemand * severityMultiplier,
   }));
 
   for (const agent of adjustedAgents) {
@@ -33,15 +33,14 @@ export function allocateResources(input) {
       break;
     }
 
-    const demand = agent.adjustedDemand;
     const allocated =
-      remainingPower >= demand ? demand : remainingPower;
+      remainingPower >= agent.demand ? agent.demand : remainingPower;
 
     results.push({
       name: agent.name,
       allocated,
       reasoning:
-        allocated === demand
+        allocated === agent.demand
           ? `Allocated full demand based on ${agent.priority} priority.`
           : `Allocated remaining power based on ${agent.priority} priority.`,
     });
