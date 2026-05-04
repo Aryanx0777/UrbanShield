@@ -36,6 +36,12 @@ function App() {
     const result = await getAllocation(allocationInput);
     setAllocationResult(result);
   };
+  const getPriorityColor = (priority) => {
+    if (priority === "critical") return "red";
+    if (priority === "high") return "orange";
+    if (priority === "medium") return "goldenrod";
+    return "green";
+  };
 
   return (
     <main>
@@ -71,13 +77,18 @@ function App() {
                   (item) => item.name === agent.name
                 );
                 const allocated = allocation?.allocated || 0;
+                const deficit = agent.demand - allocated;
 
                 return (
                   <>
-                    <p>{agent.name}</p>
+                    <p style={{ color: getPriorityColor(agent.priority) }}>
+                      {agent.name}
+                    </p>
                     <p>Demand: {agent.demand}</p>
                     <p>Allocated: {allocated}</p>
-                    <p>Deficit: {agent.demand - allocated}</p>
+                    <p style={{ color: deficit > 0 ? "red" : "green" }}>
+                      Deficit: {deficit}
+                    </p>
                   </>
                 );
               })()}
