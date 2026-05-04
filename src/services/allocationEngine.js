@@ -27,27 +27,50 @@ export function allocateResources(input) {
     ...agent,
     demand: agent.baseDemand * severityMultiplier,
   }));
+  const priorityGroups = adjustedAgents.reduce((groups, agent) => {
+    groups[agent.priority] = groups[agent.priority] || [];
+    groups[agent.priority].push(agent);
+    return groups;
+  }, {});
 
-  for (const agent of adjustedAgents) {
-    let allocated = 0;
-    let reasoning = 'No allocation due to insufficient resources and lower priority';
+  for (const priority of Object.keys(priorityWeights)) {
+    const group = priorityGroups[priority] || [];
 
-    if (remainingPower >= agent.demand) {
-      allocated = agent.demand;
-      reasoning = `Fully satisfied due to ${agent.priority} priority`;
-    } else if (remainingPower > 0) {
-      allocated = remainingPower;
-      reasoning =
-        'Partially allocated due to limited power and higher priority demands';
+    if (group.length === 0) {
+      continue;
     }
 
-    results.push({
-      name: agent.name,
-      allocated,
-      reasoning,
-    });
+    const groupDemand = group.reduce((total, agent) => total + agent.demand, 0);
 
-    remainingPower -= allocated;
+    if (remainingPower >= groupDemand) {
+      for (const agent of group) {
+        results.push({
+          name: agent.name,
+          allocated: agent.demand,
+          reasoning: `Fully satisfied due to ${agent.priority} priority`,
+        });
+      }
+
+      remainingPower -= groupDemand;
+      continue;
+    }
+
+    for (const agent of group) {
+      const allocated =
+        remainingPower > 0 ? (agent.demand / groupDemand) * remainingPower : 0;
+      const reasoning =
+        allocated > 0
+          ? 'Partially allocated due to limited power and higher priority demands'
+          : 'No allocation due to insufficient resources and lower priority';
+
+      results.push({
+        name: agent.name,
+        allocated,
+        reasoning,
+      });
+    }
+
+    remainingPower = 0;
   }
 
   return results;
