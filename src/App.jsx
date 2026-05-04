@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
 import { agents } from './data/agents';
 import { scenarios } from './data/scenarios';
+import { getAllocation } from "/src/services/api.js";
 
 function App() {
   const [selectedScenario, setSelectedScenario] = useState("flood");
   const [hasSimulated, setHasSimulated] = useState(false);
+  const [allocationResult, setAllocationResult] = useState(null);
   const updatedAgents = useMemo(() => {
     return agents.map(agent => {
       const multiplier =
@@ -29,6 +31,11 @@ function App() {
       })),
     };
   }, [updatedAgents, selectedScenario]);
+  const handleSimulate = async () => {
+    setHasSimulated(true);
+    const result = await getAllocation(allocationInput);
+    setAllocationResult(result);
+  };
 
   return (
     <main>
@@ -49,7 +56,7 @@ function App() {
 
       <section>
         <h2>Controls</h2>
-        <button onClick={() => setHasSimulated(true)}>Simulate</button>
+        <button onClick={handleSimulate}>Simulate</button>
       </section>
 
       <pre>{JSON.stringify(allocationInput, null, 2)}</pre>
@@ -69,6 +76,10 @@ function App() {
           <p>Run simulation to see updated demand</p>
         )}
       </section>
+
+      {allocationResult && (
+        <pre>{JSON.stringify(allocationResult, null, 2)}</pre>
+      )}
 
       <section>
         <h2>Dashboard</h2>
