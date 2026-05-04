@@ -108,6 +108,10 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
+      <div className="bg-red-500 text-white p-4">
+        Tailwind Working
+      </div>
+
       <h1 className="text-3xl font-bold mb-6">UrbanShield</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
