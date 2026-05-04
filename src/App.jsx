@@ -16,6 +16,19 @@ function App() {
       };
     });
   }, [selectedScenario]);
+  const allocationInput = useMemo(() => {
+    return {
+      city: "Bangalore",
+      scenario: selectedScenario,
+      totalPower: scenarios[selectedScenario].totalPower,
+      agents: updatedAgents.map(agent => ({
+        name: agent.name,
+        type: agent.type,
+        demand: agent.demand,
+        priority: agent.priority,
+      })),
+    };
+  }, [updatedAgents, selectedScenario]);
 
   return (
     <main>
@@ -38,6 +51,8 @@ function App() {
         <h2>Controls</h2>
         <button onClick={() => setHasSimulated(true)}>Simulate</button>
       </section>
+
+      <pre>{JSON.stringify(allocationInput, null, 2)}</pre>
 
       <section>
         <h2>Agent list</h2>
