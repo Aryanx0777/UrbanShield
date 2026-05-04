@@ -19,6 +19,7 @@ function App() {
   const [selectedScenario, setSelectedScenario] = useState("flood");
   const [hasSimulated, setHasSimulated] = useState(false);
   const [allocationResult, setAllocationResult] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   const updatedAgents = useMemo(() => {
     return agents.map(agent => {
       const multiplier =
@@ -84,8 +85,14 @@ function App() {
   };
   const handleSimulate = async () => {
     setHasSimulated(true);
+    setIsLoading(true);
+
+    await new Promise(resolve => setTimeout(resolve, 800));
+
     const result = await getAllocation(allocationInput);
     setAllocationResult(result);
+
+    setIsLoading(false);
   };
   const getPriorityColor = (priority) => {
     if (priority === "critical") return "red";
@@ -119,10 +126,11 @@ function App() {
           <div className="bg-white rounded-xl shadow p-4">
             <h2 className="mb-4">Controls</h2>
             <button
-              className="px-4 py-2 bg-green-500 text-white rounded mt-2"
+              className="px-4 py-2 bg-green-500 text-white rounded mt-2 disabled:opacity-50"
               onClick={handleSimulate}
+              disabled={isLoading}
             >
-              Simulate
+              {isLoading ? "Simulating..." : "Simulate"}
             </button>
           </div>
 
@@ -135,6 +143,7 @@ function App() {
           <div className="bg-white rounded-xl shadow p-4">
             <h2 className="mb-4">Summary</h2>
             <div>Total Demand: {totalDemand}</div>
+            {isLoading && <div>Calculating allocation...</div>}
             {allocationResult && (
               <>
                 <div>Total Allocated: {totalAllocated}</div>
@@ -170,7 +179,9 @@ function App() {
 
           <div className="bg-white rounded-xl shadow p-4">
             <h2 className="mb-4">Agent list</h2>
-            {hasSimulated ? (
+            {isLoading ? (
+              <p>Running simulation...</p>
+            ) : hasSimulated ? (
               updatedAgents.map((agent) => (
                 <div key={agent.id}>
                   {(() => {
