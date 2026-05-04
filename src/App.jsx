@@ -95,105 +95,123 @@ function App() {
   };
 
   return (
-    <main>
-      <h1>UrbanShield</h1>
+    <div className="min-h-screen bg-gray-100 p-6">
+      <h1 className="text-3xl font-bold mb-6">UrbanShield</h1>
 
-      <section>
-        <h2>Scenario selector</h2>
-        {Object.keys(scenarios).map((scenarioKey) => (
-          <button
-            key={scenarioKey}
-            onClick={() => setSelectedScenario(scenarioKey)}
-          >
-            {scenarios[scenarioKey].label}
-          </button>
-        ))}
-        <p>Selected: {scenarios[selectedScenario].label}</p>
-      </section>
-
-      <section>
-        <h2>Controls</h2>
-        <button onClick={handleSimulate}>Simulate</button>
-      </section>
-
-      <pre>{JSON.stringify(allocationInput, null, 2)}</pre>
-
-      <section>
-        <h2>Summary</h2>
-        <div>Total Demand: {totalDemand}</div>
-        {allocationResult && (
-          <>
-            <div>Total Allocated: {totalAllocated}</div>
-            <div style={{ color: totalDeficit > 0 ? "red" : "green" }}>
-              Total Deficit: {totalDeficit}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="md:col-span-1 space-y-4">
+          <div className="bg-white rounded-xl shadow p-4">
+            <h2 className="mb-4">Scenario selector</h2>
+            <div className="space-y-4">
+              {Object.keys(scenarios).map((scenarioKey) => (
+                <button
+                  key={scenarioKey}
+                  className="px-3 py-1 bg-blue-500 text-white rounded"
+                  onClick={() => setSelectedScenario(scenarioKey)}
+                >
+                  {scenarios[scenarioKey].label}
+                </button>
+              ))}
             </div>
-          </>
-        )}
-      </section>
+            <p>Selected: {scenarios[selectedScenario].label}</p>
+          </div>
 
-      {allocationResult && (
-        <BarChart width={600} height={300} data={chartData}>
-          <CartesianGrid />
-          <XAxis dataKey="name" />
-          <YAxis />
-          <Tooltip />
-          <Bar dataKey="demand" />
-          <Bar dataKey="allocated" />
-        </BarChart>
-      )}
+          <div className="bg-white rounded-xl shadow p-4">
+            <h2 className="mb-4">Controls</h2>
+            <button
+              className="px-4 py-2 bg-green-500 text-white rounded mt-2"
+              onClick={handleSimulate}
+            >
+              Simulate
+            </button>
+          </div>
 
-      {allocationResult && (
-        <PieChart width={400} height={300}>
-          <Pie data={priorityData} dataKey="value" nameKey="name">
-            {priorityData.map((entry) => (
-              <Cell key={entry.name} fill={COLORS[entry.name]} />
-            ))}
-          </Pie>
-          <Tooltip />
-          <Legend />
-        </PieChart>
-      )}
+          <div className="bg-white rounded-xl shadow p-4">
+            <pre>{JSON.stringify(allocationInput, null, 2)}</pre>
+          </div>
+        </div>
 
-      <section>
-        <h2>Agent list</h2>
-        {hasSimulated ? (
-          updatedAgents.map((agent) => (
-            <div key={agent.id}>
-              {(() => {
-                const allocation = allocationResult?.find(
-                  (item) => item.name === agent.name
-                );
-                const allocated = allocation?.allocated || 0;
-                const deficit = agent.demand - allocated;
+        <div className="md:col-span-3 space-y-4">
+          <div className="bg-white rounded-xl shadow p-4">
+            <h2 className="mb-4">Summary</h2>
+            <div>Total Demand: {totalDemand}</div>
+            {allocationResult && (
+              <>
+                <div>Total Allocated: {totalAllocated}</div>
+                <div style={{ color: totalDeficit > 0 ? "red" : "green" }}>
+                  Total Deficit: {totalDeficit}
+                </div>
+              </>
+            )}
+          </div>
 
-                return (
-                  <>
-                    <p style={{ color: getPriorityColor(agent.priority) }}>
-                      {agent.name}
-                    </p>
-                    <p>Demand: {agent.demand}</p>
-                    <p>Allocated: {allocated}</p>
-                    <p style={{ color: deficit > 0 ? "red" : "green" }}>
-                      Deficit: {deficit}
-                    </p>
-                  </>
-                );
-              })()}
+          {allocationResult && (
+            <div className="bg-white rounded-xl shadow p-4">
+              <BarChart width={500} height={300} data={chartData}>
+                <CartesianGrid />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="demand" />
+                <Bar dataKey="allocated" />
+              </BarChart>
+
+              <PieChart width={400} height={300}>
+                <Pie data={priorityData} dataKey="value" nameKey="name">
+                  {priorityData.map((entry) => (
+                    <Cell key={entry.name} fill={COLORS[entry.name]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
             </div>
-          ))
-        ) : (
-          <p>Run simulation to see updated demand</p>
-        )}
-      </section>
+          )}
 
-      {allocationResult && (
-        <pre>{JSON.stringify(allocationResult, null, 2)}</pre>
-      )}
+          <div className="bg-white rounded-xl shadow p-4">
+            <h2 className="mb-4">Agent list</h2>
+            {hasSimulated ? (
+              updatedAgents.map((agent) => (
+                <div key={agent.id}>
+                  {(() => {
+                    const allocation = allocationResult?.find(
+                      (item) => item.name === agent.name
+                    );
+                    const allocated = allocation?.allocated || 0;
+                    const deficit = agent.demand - allocated;
 
-      <section>
-        <h2>Dashboard</h2>
-      </section>
-    </main>
+                    return (
+                      <>
+                        <p style={{ color: getPriorityColor(agent.priority) }}>
+                          {agent.name}
+                        </p>
+                        <p>Demand: {agent.demand}</p>
+                        <p>Allocated: {allocated}</p>
+                        <p style={{ color: deficit > 0 ? "red" : "green" }}>
+                          Deficit: {deficit}
+                        </p>
+                      </>
+                    );
+                  })()}
+                </div>
+              ))
+            ) : (
+              <p>Run simulation to see updated demand</p>
+            )}
+          </div>
+
+          {allocationResult && (
+            <div className="bg-white rounded-xl shadow p-4">
+              <pre>{JSON.stringify(allocationResult, null, 2)}</pre>
+            </div>
+          )}
+
+          <div className="bg-white rounded-xl shadow p-4">
+            <h2 className="mb-4">Dashboard</h2>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
