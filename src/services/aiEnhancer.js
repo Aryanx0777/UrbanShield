@@ -74,9 +74,15 @@ function isValidAIEntry(entry) {
 
 function normalizeAllocationEntry(entry) {
   return {
+    ...entry,
     name: entry.name ?? '',
     allocated: Number.isFinite(entry.allocated) ? entry.allocated : 0,
     reasoning: entry.reasoning ?? '',
+    demand: Number.isFinite(entry.demand) ? entry.demand : 0,
+    shortage: Boolean(entry.shortage),
+    shortageAmount: Number.isFinite(entry.shortageAmount)
+      ? entry.shortageAmount
+      : 0,
   };
 }
 
@@ -97,11 +103,12 @@ function mergeReasoning(allocationResult, aiResult) {
     return allocationResult.map(normalizeAllocationEntry);
   }
 
-  return allocationResult.map((entry) => ({
-    name: entry.name ?? '',
-    allocated: Number.isFinite(entry.allocated) ? entry.allocated : 0,
-    reasoning: validReasoningByName.get(entry.name) || entry.reasoning || '',
-  }));
+  return allocationResult.map((entry) =>
+    normalizeAllocationEntry({
+      ...entry,
+      reasoning: validReasoningByName.get(entry.name) || entry.reasoning || '',
+    }),
+  );
 }
 
 export async function enhanceAllocation(input, allocationResult) {
