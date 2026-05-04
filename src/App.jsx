@@ -1,4 +1,12 @@
 import { useMemo, useState } from 'react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from 'recharts';
 import { agents } from './data/agents';
 import { scenarios } from './data/scenarios';
 import { getAllocation } from "/src/services/api.js";
@@ -42,6 +50,15 @@ function App() {
   const totalDeficit = useMemo(() => {
     return totalDemand - totalAllocated;
   }, [totalDemand, totalAllocated]);
+  const chartData = updatedAgents.map(agent => {
+    const allocation = allocationResult?.find(a => a.name === agent.name);
+
+    return {
+      name: agent.name,
+      demand: agent.demand,
+      allocated: allocation ? allocation.allocated : 0,
+    };
+  });
   const handleSimulate = async () => {
     setHasSimulated(true);
     const result = await getAllocation(allocationInput);
@@ -90,6 +107,17 @@ function App() {
           </>
         )}
       </section>
+
+      {allocationResult && (
+        <BarChart width={600} height={300} data={chartData}>
+          <CartesianGrid />
+          <XAxis dataKey="name" />
+          <YAxis />
+          <Tooltip />
+          <Bar dataKey="demand" />
+          <Bar dataKey="allocated" />
+        </BarChart>
+      )}
 
       <section>
         <h2>Agent list</h2>
