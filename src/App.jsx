@@ -83,6 +83,11 @@ function App() {
     medium: "gold",
     low: "green",
   };
+  const hasCriticalShortage = updatedAgents.some(agent => {
+    const allocation = allocationResult?.find(a => a.name === agent.name);
+    const deficit = allocation ? agent.demand - allocation.allocated : 0;
+    return deficit > 0 && agent.priority === "critical";
+  });
   const handleSimulate = async () => {
     setHasSimulated(true);
     setIsLoading(true);
@@ -142,6 +147,11 @@ function App() {
         <div className="md:col-span-3 space-y-4">
           <div className="bg-white rounded-xl shadow p-4">
             <h2 className="mb-4">Summary</h2>
+            {hasCriticalShortage && (
+              <div className="bg-red-100 text-red-700 p-3 rounded">
+                Critical infrastructure under stress
+              </div>
+            )}
             <div>Total Demand: {totalDemand}</div>
             {isLoading && <div>Calculating allocation...</div>}
             {allocationResult && (
@@ -201,6 +211,14 @@ function App() {
                         <p style={{ color: deficit > 0 ? "red" : "green" }}>
                           Deficit: {deficit}
                         </p>
+                        {deficit > 0 && agent.priority === "critical" && (
+                          <p className="text-red-600 font-semibold">
+                            ⚠️ Critical shortage
+                          </p>
+                        )}
+                        {deficit > 0 && agent.priority !== "critical" && (
+                          <p className="text-orange-500">Shortage</p>
+                        )}
                       </>
                     );
                   })()}
