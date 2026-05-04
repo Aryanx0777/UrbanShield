@@ -12,6 +12,8 @@ function getPriorityWeight(priority) {
 export function allocateResources(input) {
   const { scenario, severity, totalPower, agents } = input;
   const severityMultiplier = 1 + severity / 10;
+  let remainingPower = totalPower;
+  const results = [];
 
   // Central place for resource allocation logic.
   // Future work can use scenario, severity, totalPower, and agents
@@ -26,5 +28,26 @@ export function allocateResources(input) {
     adjustedDemand: agent.baseDemand * severityMultiplier,
   }));
 
-  return [];
+  for (const agent of adjustedAgents) {
+    if (remainingPower <= 0) {
+      break;
+    }
+
+    const demand = agent.adjustedDemand;
+    const allocated =
+      remainingPower >= demand ? demand : remainingPower;
+
+    results.push({
+      name: agent.name,
+      allocated,
+      reasoning:
+        allocated === demand
+          ? `Allocated full demand based on ${agent.priority} priority.`
+          : `Allocated remaining power based on ${agent.priority} priority.`,
+    });
+
+    remainingPower -= allocated;
+  }
+
+  return results;
 }
