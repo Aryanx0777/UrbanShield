@@ -6,6 +6,10 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
 } from 'recharts';
 import { agents } from './data/agents';
 import { scenarios } from './data/scenarios';
@@ -59,6 +63,25 @@ function App() {
       allocated: allocation ? allocation.allocated : 0,
     };
   });
+  const priorityData = ["critical", "high", "medium", "low"].map(priority => {
+    const total = updatedAgents
+      .filter(agent => agent.priority === priority)
+      .reduce((sum, agent) => {
+        const allocation = allocationResult?.find(a => a.name === agent.name);
+        return sum + (allocation ? allocation.allocated : 0);
+      }, 0);
+
+    return {
+      name: priority,
+      value: total,
+    };
+  });
+  const COLORS = {
+    critical: "red",
+    high: "orange",
+    medium: "gold",
+    low: "green",
+  };
   const handleSimulate = async () => {
     setHasSimulated(true);
     const result = await getAllocation(allocationInput);
@@ -117,6 +140,18 @@ function App() {
           <Bar dataKey="demand" />
           <Bar dataKey="allocated" />
         </BarChart>
+      )}
+
+      {allocationResult && (
+        <PieChart width={400} height={300}>
+          <Pie data={priorityData} dataKey="value" nameKey="name">
+            {priorityData.map((entry) => (
+              <Cell key={entry.name} fill={COLORS[entry.name]} />
+            ))}
+          </Pie>
+          <Tooltip />
+          <Legend />
+        </PieChart>
       )}
 
       <section>
