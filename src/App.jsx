@@ -112,8 +112,8 @@ function App() {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="md:col-span-1 space-y-4">
-          <div className="bg-white rounded-xl shadow p-4">
-            <h2 className="mb-4">Scenario selector</h2>
+          <div className="bg-white rounded-xl shadow p-4 hover:shadow-lg transition">
+            <h2 className="text-lg font-semibold mb-2">Scenario selector</h2>
             <div className="space-y-4">
               {Object.keys(scenarios).map((scenarioKey) => (
                 <button
@@ -128,8 +128,8 @@ function App() {
             <p>Selected: {scenarios[selectedScenario].label}</p>
           </div>
 
-          <div className="bg-white rounded-xl shadow p-4">
-            <h2 className="mb-4">Controls</h2>
+          <div className="bg-white rounded-xl shadow p-4 hover:shadow-lg transition">
+            <h2 className="text-lg font-semibold mb-2">Controls</h2>
             <button
               className="px-4 py-2 bg-green-500 text-white rounded mt-2 disabled:opacity-50"
               onClick={handleSimulate}
@@ -139,14 +139,14 @@ function App() {
             </button>
           </div>
 
-          <div className="bg-white rounded-xl shadow p-4">
+          <div className="bg-white rounded-xl shadow p-4 hover:shadow-lg transition">
             <pre>{JSON.stringify(allocationInput, null, 2)}</pre>
           </div>
         </div>
 
-        <div className="md:col-span-3 space-y-4">
-          <div className="bg-white rounded-xl shadow p-4">
-            <h2 className="mb-4">Summary</h2>
+        <div className="md:col-span-3 space-y-6">
+          <div className="bg-white rounded-xl shadow p-4 hover:shadow-lg transition">
+            <h2 className="text-lg font-semibold mb-2">Simulation Summary</h2>
             {hasCriticalShortage && (
               <div className="bg-red-100 text-red-700 p-3 rounded">
                 Critical infrastructure under stress
@@ -165,18 +165,29 @@ function App() {
           </div>
 
           {allocationResult && (
-            <div className="bg-white rounded-xl shadow p-4">
-              <BarChart width={500} height={300} data={chartData}>
+            <div className="bg-white rounded-xl shadow p-4 hover:shadow-lg transition">
+              <h2 className="text-lg font-semibold mb-2">Agent Allocation</h2>
+              <BarChart
+                width={500}
+                height={300}
+                data={chartData}
+                margin={{ top: 20, right: 20, left: 10, bottom: 40 }}
+              >
                 <CartesianGrid />
-                <XAxis dataKey="name" />
+                <XAxis dataKey="name" angle={-20} textAnchor="end" interval={0} />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="demand" />
-                <Bar dataKey="allocated" />
+                <Bar dataKey="demand" fill="#8884d8" />
+                <Bar dataKey="allocated" fill="#82ca9d" />
               </BarChart>
+            </div>
+          )}
 
+          {allocationResult && (
+            <div className="bg-white rounded-xl shadow p-4 hover:shadow-lg transition">
+              <h2 className="text-lg font-semibold mb-2">Resource Distribution</h2>
               <PieChart width={400} height={300}>
-                <Pie data={priorityData} dataKey="value" nameKey="name">
+                <Pie data={priorityData} dataKey="value" nameKey="name" label>
                   {priorityData.map((entry) => (
                     <Cell key={entry.name} fill={COLORS[entry.name]} />
                   ))}
@@ -187,8 +198,8 @@ function App() {
             </div>
           )}
 
-          <div className="bg-white rounded-xl shadow p-4">
-            <h2 className="mb-4">Agent list</h2>
+          <div className="bg-white rounded-xl shadow p-4 hover:shadow-lg transition">
+            <h2 className="text-lg font-semibold mb-2">Agent list</h2>
             {isLoading ? (
               <p>Running simulation...</p>
             ) : hasSimulated ? (
@@ -230,13 +241,13 @@ function App() {
           </div>
 
           {allocationResult && (
-            <div className="bg-white rounded-xl shadow p-4">
+            <div className="bg-white rounded-xl shadow p-4 hover:shadow-lg transition">
               <pre>{JSON.stringify(allocationResult, null, 2)}</pre>
             </div>
           )}
 
-          <div className="bg-white rounded-xl shadow p-4">
-            <h2 className="mb-4">Dashboard</h2>
+          <div className="bg-white rounded-xl shadow p-4 hover:shadow-lg transition">
+            <h2 className="text-lg font-semibold mb-2">Dashboard</h2>
           </div>
         </div>
       </div>
