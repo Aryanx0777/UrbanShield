@@ -1,16 +1,9 @@
-export async function getAllocation(input) {
-  console.log('Allocation input:', input);
+import { runAllocation } from './engineAdapter.js';
 
-  return [
-    {
-      name: 'Manipal Hospital',
-      allocated: 35,
-      reasoning: 'Mock allocation for base project setup.',
-    },
-    {
-      name: 'Apollo Hospital',
-      allocated: 30,
-      reasoning: 'Mock allocation for base project setup.',
-    },
-  ];
+export async function getAllocation(input) {
+  await new Promise((resolve) => {
+    setTimeout(resolve, 700);
+  });
+
+  return runAllocation(input);
 }
