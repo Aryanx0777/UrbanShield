@@ -11,6 +11,7 @@ function getPriorityWeight(priority) {
 
 export function allocateResources(input) {
   const { scenario, severity, totalPower, agents } = input;
+  const severityMultiplier = 1 + severity / 10;
 
   // Central place for resource allocation logic.
   // Future work can use scenario, severity, totalPower, and agents
@@ -20,6 +21,10 @@ export function allocateResources(input) {
       getPriorityWeight(secondAgent.priority) -
       getPriorityWeight(firstAgent.priority),
   );
+  const adjustedAgents = sortedAgents.map((agent) => ({
+    ...agent,
+    adjustedDemand: agent.baseDemand * severityMultiplier,
+  }));
 
   return [];
 }
