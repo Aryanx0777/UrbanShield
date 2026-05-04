@@ -1,8 +1,20 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { agents } from './data/agents';
 import { scenarios } from './data/scenarios';
 
 function App() {
   const [selectedScenario, setSelectedScenario] = useState("flood");
+  const updatedAgents = useMemo(() => {
+    return agents.map(agent => {
+      const multiplier =
+        scenarios[selectedScenario].multipliers[agent.type] || 1;
+
+      return {
+        ...agent,
+        demand: Math.round(agent.baseDemand * multiplier),
+      };
+    });
+  }, [selectedScenario]);
 
   return (
     <main>
@@ -27,6 +39,14 @@ function App() {
 
       <section>
         <h2>Agent list</h2>
+        {updatedAgents.map((agent) => (
+          <div key={agent.id}>
+            <p>{agent.name}</p>
+            <p>{agent.type}</p>
+            <p>{agent.priority}</p>
+            <p>{agent.demand}</p>
+          </div>
+        ))}
       </section>
 
       <section>
