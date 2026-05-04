@@ -4,6 +4,7 @@ import { scenarios } from './data/scenarios';
 
 function App() {
   const [selectedScenario, setSelectedScenario] = useState("flood");
+  const [hasSimulated, setHasSimulated] = useState(false);
   const updatedAgents = useMemo(() => {
     return agents.map(agent => {
       const multiplier =
@@ -35,18 +36,23 @@ function App() {
 
       <section>
         <h2>Controls</h2>
+        <button onClick={() => setHasSimulated(true)}>Simulate</button>
       </section>
 
       <section>
         <h2>Agent list</h2>
-        {updatedAgents.map((agent) => (
-          <div key={agent.id}>
-            <p>{agent.name}</p>
-            <p>{agent.type}</p>
-            <p>{agent.priority}</p>
-            <p>{agent.demand}</p>
-          </div>
-        ))}
+        {hasSimulated ? (
+          updatedAgents.map((agent) => (
+            <div key={agent.id}>
+              <p>{agent.name}</p>
+              <p>{agent.type}</p>
+              <p>{agent.priority}</p>
+              <p>{agent.demand}</p>
+            </div>
+          ))
+        ) : (
+          <p>Run simulation to see updated demand</p>
+        )}
       </section>
 
       <section>
