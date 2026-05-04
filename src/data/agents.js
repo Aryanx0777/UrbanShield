@@ -1,0 +1,42 @@
+export const agents = [
+  {
+    id: 'manipal-hospital',
+    name: 'Manipal Hospital',
+    type: 'hospital',
+    priority: 'critical',
+    baseDemand: 35,
+    location: 'Old Airport Road, Bangalore',
+  },
+  {
+    id: 'apollo-hospital',
+    name: 'Apollo Hospital',
+    type: 'hospital',
+    priority: 'critical',
+    baseDemand: 32,
+    location: 'Bannerghatta Road, Bangalore',
+  },
+  {
+    id: 'fire-services',
+    name: 'Fire Services',
+    type: 'emergency',
+    priority: 'high',
+    baseDemand: 28,
+    location: 'Bangalore Central',
+  },
+  {
+    id: 'bescom',
+    name: 'BESCOM',
+    type: 'power',
+    priority: 'high',
+    baseDemand: 24,
+    location: 'KR Circle, Bangalore',
+  },
+  {
+    id: 'bwssb',
+    name: 'BWSSB',
+    type: 'water',
+    priority: 'medium',
+    baseDemand: 20,
+    location: 'Cauvery Bhavan, Bangalore',
+  },
+];
