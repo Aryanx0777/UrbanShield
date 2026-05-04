@@ -66,10 +66,21 @@ function App() {
         {hasSimulated ? (
           updatedAgents.map((agent) => (
             <div key={agent.id}>
-              <p>{agent.name}</p>
-              <p>{agent.type}</p>
-              <p>{agent.priority}</p>
-              <p>{agent.demand}</p>
+              {(() => {
+                const allocation = allocationResult?.find(
+                  (item) => item.name === agent.name
+                );
+                const allocated = allocation?.allocated || 0;
+
+                return (
+                  <>
+                    <p>{agent.name}</p>
+                    <p>Demand: {agent.demand}</p>
+                    <p>Allocated: {allocated}</p>
+                    <p>Deficit: {agent.demand - allocated}</p>
+                  </>
+                );
+              })()}
             </div>
           ))
         ) : (
