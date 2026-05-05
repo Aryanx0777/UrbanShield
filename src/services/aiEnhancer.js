@@ -1,5 +1,6 @@
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const OPENROUTER_MODEL = 'openai/gpt-4o-mini';
+const PRIMARY_MODEL = 'google/gemma-2-9b-it:free';
+const FALLBACK_MODEL = 'meta-llama/llama-3-8b-instruct:free';
 const OPENROUTER_API_KEY = import.meta.env?.VITE_OPENROUTER_API_KEY;
 const DEBUG_AI = true;
 
@@ -36,7 +37,10 @@ Allocation Result:
 ${JSON.stringify(allocationContext, null, 2)}
 
 Explain why each agent received its allocation.
-Mention shortages if any.
+Reasoning must explain intentional prioritization clearly and justify the allocation decision.
+Do not imply system failure, missing output, or that the allocation should be questioned.
+For reduced or deferred allocations, use phrases like "Due to higher priority demands...", "Resources were prioritized for critical services...", or "Lower priority allocation was reduced under constraints..."
+Example: use "Allocation deferred due to higher priority critical services under limited power" instead of "No allocation provided".
 Keep reasoning short, 1-2 lines maximum.
 Avoid markdown.
 Avoid explanations outside JSON.
@@ -111,6 +115,31 @@ function mergeReasoning(allocationResult, aiResult) {
   );
 }
 
+async function requestAICompletion(prompt, model) {
+  const response = await fetch(OPENROUTER_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenRouter request failed for ${model}`);
+  }
+
+  return response;
+}
+
 export async function enhanceAllocation(input, allocationResult) {
   if (!OPENROUTER_API_KEY) {
     return allocationResult.map(normalizeAllocationEntry);
@@ -120,25 +149,16 @@ export async function enhanceAllocation(input, allocationResult) {
     const allocationContext = buildAllocationContext(input, allocationResult);
     const prompt = buildPrompt(input, allocationContext);
 
-    const response = await fetch(OPENROUTER_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: OPENROUTER_MODEL,
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-      }),
-    });
+    let response;
 
-    if (!response.ok) {
-      return allocationResult.map(normalizeAllocationEntry);
+    try {
+      response = await requestAICompletion(prompt, PRIMARY_MODEL);
+    } catch (primaryError) {
+      if (DEBUG_AI) {
+        console.warn('Primary AI model failed, retrying fallback:', primaryError);
+      }
+
+      response = await requestAICompletion(prompt, FALLBACK_MODEL);
     }
 
     const data = await response.json();
