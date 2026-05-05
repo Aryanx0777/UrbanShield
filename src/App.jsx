@@ -481,6 +481,7 @@ function App() {
                 <div className="space-y-4">
                   {result?.allocation?.map((agent) => {
                     const styles = PRIORITY_STYLES[agent.priority] ?? PRIORITY_STYLES.low;
+                    const aiReasoning = agent.reasoning?.trim();
 
                     return (
                       <div
@@ -531,9 +532,24 @@ function App() {
                           </div>
                         )}
 
-                        <p className="mt-3 text-sm italic text-slate-500 leading-relaxed font-medium">
-                          {agent.reasoning}
-                        </p>
+                        <div className="mt-4 space-y-1">
+                          <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-600">
+                            🤖 AI Explanation
+                          </div>
+                          <p
+                            style={{
+                              fontSize: "0.85rem",
+                              color: "#666",
+                              fontStyle: "italic",
+                              display: "-webkit-box",
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                            }}
+                          >
+                            {aiReasoning || "AI reasoning unavailable (using rule-based explanation)"}
+                          </p>
+                        </div>
                       </div>
                     );
                   })}

@@ -13,7 +13,7 @@ export const agents = [
     type: 'hospital',
     priority: 'critical',
     baseDemand: 32,
-    location: 'Bannerghatta Road, Bangalore',
+    location: 'Baginnerghatta Road, Bangalore',
   },
   {
     id: 'fire-services',
