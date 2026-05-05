@@ -23,24 +23,28 @@ const SCENARIOS = [
 
 const PRIORITY_STYLES = {
   critical: {
-    border: "border-red-600",
-    badge: "bg-red-50 text-red-700 border border-red-100",
-    chart: "#DC2626",
+    border: "border-red-500",
+    bg: "bg-red-50",
+    badge: "bg-red-100 text-red-600 border border-red-200",
+    chart: "#ef4444",
   },
   high: {
-    border: "border-amber-500",
-    badge: "bg-amber-50 text-amber-700 border border-amber-100",
-    chart: "#F59E0B",
+    border: "border-orange-400",
+    bg: "bg-orange-50",
+    badge: "bg-orange-100 text-orange-600 border border-orange-200",
+    chart: "#f97316",
   },
   medium: {
     border: "border-yellow-400",
-    badge: "bg-yellow-50 text-yellow-700 border border-yellow-100",
-    chart: "#FCD34D",
+    bg: "bg-yellow-50",
+    badge: "bg-yellow-100 text-yellow-700 border border-yellow-200",
+    chart: "#eab308",
   },
   low: {
-    border: "border-emerald-500",
-    badge: "bg-emerald-50 text-emerald-700 border border-emerald-100",
-    chart: "#22C55E",
+    border: "border-green-400",
+    bg: "bg-green-50",
+    badge: "bg-green-100 text-green-600 border border-green-200",
+    chart: "#22c55e",
   },
 };
 
@@ -52,17 +56,36 @@ function App() {
   const [beforeOptimization, setBeforeOptimization] = useState(null);
   const [hasSimulated, setHasSimulated] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
   const [optimizationMessage, setOptimizationMessage] = useState("");
+  const [highlightedAgents, setHighlightedAgents] = useState([]);
 
   const chartData = result?.allocation ?? [];
 
+  const getActiveScenarioLabel = () => {
+    return SCENARIOS.find(s => s.key === scenario)?.label || scenario;
+  };
+
+  const getServiceStatus = (allocated, demand) => {
+    const ratio = allocated / demand;
+    if (ratio < 0.6) return { label: "Critical", bg: "#FEE2E2", text: "#DC2626" };
+    if (ratio < 0.85) return { label: "Warning", bg: "#FEF3C7", text: "#D97706" };
+    return { label: "Stable", bg: "#DCFCE7", text: "#16A34A" };
+  };
+
   const priorityData = useMemo(() => {
-    return ["critical", "high", "medium", "low"].map((priority) => ({
-      name: priority,
-      value: chartData
+    return ["critical", "high", "medium", "low"].map((priority) => {
+      const realValue = chartData
         .filter((agent) => agent.priority === priority)
-        .reduce((sum, agent) => sum + agent.allocated, 0),
-    }));
+        .reduce((sum, agent) => sum + agent.allocated, 0);
+      
+      return {
+        name: priority,
+        originalValue: realValue,
+        // Use tiny value for zero to ensure it renders in the donut
+        value: realValue === 0 ? 0.0001 : realValue,
+      };
+    });
   }, [chartData]);
 
   const buildInput = () => ({
@@ -76,8 +99,12 @@ function App() {
     setLoading(true);
     setOptimizationMessage("");
     setBeforeOptimization(null);
+    setHighlightedAgents([]);
 
     try {
+      // Small delay to simulate AI processing/backend computation
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
       const input = buildInput();
       const res = await runSimulation(input);
 
@@ -90,63 +117,88 @@ function App() {
     }
   };
 
+  const handleReset = () => {
+    setResult(null);
+    setBeforeOptimization(null);
+    setHasSimulated(false);
+    setScenario("flood");
+    setSeverity(5);
+    setTotalPower(100);
+    setOptimizationMessage("");
+    setHighlightedAgents([]);
+  };
+
   const handleOptimize = () => {
     if (!result) return;
 
-    // Capture state before optimization
-    setBeforeOptimization(JSON.parse(JSON.stringify(result)));
+    setOptimizing(true);
+    setOptimizationMessage("");
+    
+    // Artificial delay for micro-interaction
+    setTimeout(() => {
+      // Capture state before optimization
+      setBeforeOptimization(JSON.parse(JSON.stringify(result)));
 
-    const newAllocation = [...result.allocation];
-    let pool = 0;
+      const newAllocation = [...result.allocation];
+      let pool = 0;
+      const changed = [];
 
-    // Phase 1: Harvest surplus from low priority (Utilities)
-    newAllocation.forEach((agent, idx) => {
-      if (agent.priority === "low" || agent.priority === "medium") {
-        const safeMin = Math.max(10, Math.floor(agent.demand * 0.4));
-        if (agent.allocated > safeMin) {
-          const reduction = agent.allocated - safeMin;
-          pool += reduction;
-          newAllocation[idx] = { ...agent, allocated: safeMin, shortage: true, shortageAmount: agent.demand - safeMin };
-        }
-      }
-    });
-
-    // Phase 2: Redistribute to Critical then High
-    const targets = ["critical", "high", "medium"];
-    targets.forEach((prio) => {
+      // Phase 1: Harvest surplus from low priority (Utilities)
       newAllocation.forEach((agent, idx) => {
-        if (agent.priority === prio && agent.allocated < agent.demand && pool > 0) {
-          const needed = agent.demand - agent.allocated;
-          const transfer = Math.min(pool, needed);
-          pool -= transfer;
-          const newAllocated = agent.allocated + transfer;
-          newAllocation[idx] = { 
-            ...agent, 
-            allocated: newAllocated, 
-            shortage: newAllocated < agent.demand,
-            shortageAmount: Math.max(0, agent.demand - newAllocated)
-          };
+        if (agent.priority === "low" || agent.priority === "medium") {
+          const safeMin = Math.max(10, Math.floor(agent.demand * 0.4));
+          if (agent.allocated > safeMin) {
+            const reduction = agent.allocated - safeMin;
+            pool += reduction;
+            newAllocation[idx] = { ...agent, allocated: safeMin, shortage: true, shortageAmount: agent.demand - safeMin };
+            changed.push(agent.name);
+          }
         }
       });
-    });
 
-    const totalAllocated = newAllocation.reduce((sum, a) => sum + a.allocated, 0);
-    const totalShortage = newAllocation.reduce((sum, a) => sum + (a.demand - a.allocated), 0);
-    const criticalShortageCount = newAllocation.filter(a => a.priority === 'critical' && a.shortage).length;
+      // Phase 2: Redistribute to Critical then High
+      const targets = ["critical", "high", "medium"];
+      targets.forEach((prio) => {
+        newAllocation.forEach((agent, idx) => {
+          if (agent.priority === prio && agent.allocated < agent.demand && pool > 0) {
+            const needed = agent.demand - agent.allocated;
+            const transfer = Math.min(pool, needed);
+            pool -= transfer;
+            const newAllocated = agent.allocated + transfer;
+            newAllocation[idx] = { 
+              ...agent, 
+              allocated: newAllocated, 
+              shortage: newAllocated < agent.demand,
+              shortageAmount: Math.max(0, agent.demand - newAllocated)
+            };
+            if (transfer > 0) changed.push(agent.name);
+          }
+        });
+      });
 
-    setResult({
-      ...result,
-      allocation: newAllocation,
-      summary: {
-        ...result.summary,
-        totalAllocated,
-        totalShortage,
-        criticalShortageCount
-      }
-    });
-    
-    setOptimizationMessage("✅ Allocation optimized based on priority");
-    setTimeout(() => setOptimizationMessage(""), 4000);
+      const totalAllocated = newAllocation.reduce((sum, a) => sum + a.allocated, 0);
+      const totalShortage = newAllocation.reduce((sum, a) => sum + (a.demand - a.allocated), 0);
+      const criticalShortageCount = newAllocation.filter(a => a.priority === 'critical' && a.shortage).length;
+
+      setResult({
+        ...result,
+        allocation: newAllocation,
+        summary: {
+          ...result.summary,
+          totalAllocated,
+          totalShortage,
+          criticalShortageCount
+        }
+      });
+      
+      setHighlightedAgents(changed);
+      setOptimizing(false);
+      setOptimizationMessage("✅ Allocation optimized based on priority");
+      
+      // Clear highlights after 3 seconds
+      setTimeout(() => setHighlightedAgents([]), 3000);
+      setTimeout(() => setOptimizationMessage(""), 5000);
+    }, 800);
   };
 
   return (
@@ -160,8 +212,8 @@ function App() {
 
       <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
         <aside className="space-y-6 md:col-span-1">
-          <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 text-lg font-semibold text-slate-800">
+          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition duration-150 hover:shadow-md">
+            <h2 className="mb-4 text-lg font-semibold text-gray-800">
               Scenario Selector
             </h2>
             <div className="space-y-2">
@@ -169,7 +221,7 @@ function App() {
                 <button
                   key={item.key}
                   onClick={() => setScenario(item.key)}
-                  className={`w-full rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-all ${
+                  className={`w-full rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-all active:scale-95 cursor-pointer ${
                     scenario === item.key
                       ? "bg-blue-600 text-white shadow-md shadow-blue-100"
                       : "bg-slate-50 text-slate-600 hover:bg-slate-100"
@@ -181,16 +233,16 @@ function App() {
             </div>
           </section>
 
-          <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 text-lg font-semibold text-slate-800">
+          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition duration-150 hover:shadow-md">
+            <h2 className="mb-4 text-lg font-semibold text-gray-800">
               Simulation Inputs
             </h2>
 
-            <div className="space-y-5">
+            <div className="space-y-4">
               <div>
                 <div className="flex justify-between text-sm font-medium text-slate-700">
                   <span>Severity</span>
-                  <span className="text-blue-600">{severity}</span>
+                  <span className="text-blue-600 font-bold">{severity}</span>
                 </div>
                 <input
                   type="range"
@@ -198,7 +250,7 @@ function App() {
                   max="10"
                   value={severity}
                   onChange={(event) => setSeverity(Number(event.target.value))}
-                  className="mt-2 w-full accent-blue-600"
+                  className="mt-2 w-full accent-blue-600 cursor-pointer transition duration-150"
                 />
               </div>
 
@@ -210,29 +262,47 @@ function App() {
                   type="number"
                   value={totalPower}
                   onChange={(event) => setTotalPower(Number(event.target.value))}
-                  className="mt-2 w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="mt-2 w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-150 text-slate-900 font-medium"
                 />
               </div>
 
               <button
                 onClick={handleSimulate}
                 disabled={loading}
-                className="w-full rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white shadow-lg shadow-emerald-100 transition-all hover:bg-emerald-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                className={`w-full rounded-lg px-4 py-3 font-bold text-white shadow-md transition duration-150 active:scale-95 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
+                  loading ? "bg-slate-400 shadow-none" : "bg-green-500 hover:bg-green-600 shadow-green-100"
+                }`}
               >
-                {loading ? "Processing..." : "Run Simulation"}
+                {loading ? "Simulating..." : "Run Simulation"}
               </button>
 
+              {loading && (
+                <div className="flex items-center justify-center space-x-2 mt-2 text-slate-500 text-xs font-medium animate-pulse">
+                  <div className="h-3 w-3 border-2 border-slate-300 border-t-green-500 rounded-full animate-spin"></div>
+                  <span>Running allocation model...</span>
+                </div>
+              )}
+
               {hasSimulated && (
-                <button
-                  onClick={handleOptimize}
-                  className="w-full rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white shadow-lg shadow-emerald-100 transition-all hover:bg-emerald-700 active:scale-[0.98]"
-                >
-                  Optimize Allocation
-                </button>
+                <div className="space-y-3">
+                  <button
+                    onClick={handleOptimize}
+                    disabled={optimizing}
+                    className="w-full rounded-lg bg-green-500 px-4 py-3 font-bold text-white shadow-md shadow-green-100 transition duration-150 hover:bg-green-600 active:scale-95 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {optimizing ? "Optimizing..." : "Optimize Allocation"}
+                  </button>
+                  <button
+                    onClick={handleReset}
+                    className="w-full rounded-lg bg-gray-200 px-4 py-3 font-bold text-slate-600 transition duration-150 hover:bg-gray-300 active:scale-95 cursor-pointer"
+                  >
+                    Reset Scenario
+                  </button>
+                </div>
               )}
 
               {optimizationMessage && (
-                <p className="text-center text-xs font-medium text-emerald-600 animate-fade-in">
+                <p className="text-center text-xs font-medium text-emerald-600 animate-pulse">
                   {optimizationMessage}
                 </p>
               )}
@@ -240,357 +310,477 @@ function App() {
           </section>
         </aside>
 
-        <main className="space-y-8 md:col-span-3">
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-5 text-lg font-semibold text-slate-800">
-              System Overview
-            </h2>
-            {loading ? (
-              <div className="flex items-center space-x-3 text-blue-600">
-                <div className="h-2 w-2 animate-bounce rounded-full bg-blue-600 [animation-delay:-0.3s]"></div>
-                <div className="h-2 w-2 animate-bounce rounded-full bg-blue-600 [animation-delay:-0.15s]"></div>
-                <div className="h-2 w-2 animate-bounce rounded-full bg-blue-600"></div>
-                <span className="font-medium">Calculating resource allocation...</span>
-              </div>
-            ) : hasSimulated && result ? (
-              <>
-                {result?.summary?.criticalShortageCount > 0 && (
-                  <div className="mb-6 flex items-center rounded-lg bg-red-50 p-4 border border-red-100 text-red-800">
-                    <span className="mr-3 text-lg">⚠</span>
-                    <span className="font-medium">Critical infrastructure stress detected. Immediate resource reallocation required.</span>
+        <main className={`md:col-span-3 space-y-6 transition duration-150 ${hasSimulated ? "opacity-100 translate-y-0" : "opacity-100"}`}>
+          {!hasSimulated ? (
+            <div className="flex min-h-[600px] flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-white p-12 text-center shadow-sm transition-all duration-200 hover:shadow-md">
+              <div className="mb-6 text-6xl">📊</div>
+              <h2 className="mb-2 text-2xl font-bold text-slate-800">
+                Ready to Simulate
+              </h2>
+              <p className="max-w-md text-slate-500 text-sm leading-relaxed">
+                Configure your disaster scenario and resource parameters on the left, then click 
+                <span className="mx-1 font-bold text-green-600">Run Simulation</span> 
+                to generate real-time allocation data and AI tactical insights.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {result && (
+                <div className="transition duration-150">
+                  {result.summary.criticalShortageCount > 0 ? (
+                    <div className="bg-red-50 border border-red-200 text-red-800 p-6 rounded-xl flex items-center justify-between shadow-sm transition duration-150 hover:shadow-md">
+                      <div>
+                        <p className="font-bold flex items-center text-lg">
+                          <span className="mr-2">🚨</span>
+                          {result.summary.criticalShortageCount} Critical Systems Under Stress
+                        </p>
+                        <p className="text-sm opacity-90 font-medium text-red-700">
+                          Immediate attention required for essential services
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-extrabold bg-red-100 text-red-900 px-4 py-1.5 rounded-full border border-red-200 uppercase tracking-widest shadow-sm">
+                        High Priority
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-6 rounded-xl flex items-center shadow-sm transition duration-150 hover:shadow-md font-bold text-base">
+                      <span className="mr-2 text-xl">✅</span>
+                      System Secure: All critical services are sufficiently allocated
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <section className="bg-white rounded-xl shadow-sm p-6 transition duration-150 hover:shadow-md border border-slate-100">
+                <div className="mb-5 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-800">
+                    System Overview
+                  </h2>
+                  <div className="flex items-center space-x-2 rounded-full bg-slate-100 px-3 py-1 text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                    <span>Scenario: {getActiveScenarioLabel()}</span>
+                    <span className="text-slate-300">|</span>
+                    <span>Severity: {severity}</span>
+                  </div>
+                </div>
+                {loading ? (
+                  <div className="flex items-center space-x-3 text-blue-600 py-10 justify-center">
+                    <div className="h-2 w-2 animate-bounce rounded-full bg-blue-600 [animation-delay:-0.3s]"></div>
+                    <div className="h-2 w-2 animate-bounce rounded-full bg-blue-600 [animation-delay:-0.15s]"></div>
+                    <div className="h-2 w-2 animate-bounce rounded-full bg-blue-600"></div>
+                    <span className="font-bold text-sm tracking-tight">ANALYZING RESOURCE FLOWS...</span>
+                  </div>
+                ) : result && (
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-5">
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        Total Demand
+                      </p>
+                      <p className="mt-1 text-3xl font-bold text-slate-900 tracking-tight">
+                        {result?.summary?.totalDemand}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-5">
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        Total Allocated
+                      </p>
+                      <p className="mt-1 text-3xl font-bold text-slate-900 tracking-tight">
+                        {result?.summary?.totalAllocated}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-5">
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        System Deficit
+                      </p>
+                      <p
+                        className={`mt-1 text-3xl font-bold tracking-tight ${
+                          result?.summary?.totalShortage > 0
+                            ? "text-red-600"
+                            : "text-emerald-600"
+                        }`}
+                      >
+                        {result?.summary?.totalShortage}
+                      </p>
+                    </div>
                   </div>
                 )}
+              </section>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                      Total Demand
-                    </p>
-                    <p className="mt-1 text-2xl font-bold text-slate-900">
-                      {result?.summary?.totalDemand}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                      Total Allocated
-                    </p>
-                    <p className="mt-1 text-2xl font-bold text-slate-900">
-                      {result?.summary?.totalAllocated}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                      System Deficit
-                    </p>
-                    <p
-                      className={`mt-1 text-2xl font-bold ${
-                        result?.summary?.totalShortage > 0
-                          ? "text-red-600"
-                          : "text-emerald-600"
-                      }`}
-                    >
-                      {result?.summary?.totalShortage}
-                    </p>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="rounded-lg border-2 border-dashed border-slate-200 p-8 text-center text-slate-400">
-                Configure scenario parameters and initiate simulation to view results
-              </div>
-            )}
-          </section>
+              {result && (
+                <section className="bg-white rounded-xl shadow-sm p-6 transition duration-150 hover:shadow-md border border-slate-100">
+                  <h2 className="mb-4 text-lg font-semibold text-gray-800">
+                    Recommended Actions
+                  </h2>
+                  <div className="space-y-3">
+                    {(() => {
+                      const deficit = result.summary.totalShortage;
+                      if (deficit <= 0) {
+                        return (
+                          <div className="flex items-center text-emerald-600 font-bold text-sm bg-emerald-50/50 p-4 rounded-lg border border-emerald-100">
+                            <span className="mr-2 text-lg">✅</span>
+                            Resources are balanced. No immediate action required.
+                          </div>
+                        );
+                      }
 
-          {hasSimulated && result && (
-            <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-lg font-semibold text-slate-800">
-                Recommended Actions
-              </h2>
-              <div className="space-y-3">
-                {(() => {
-                  const deficit = result.summary.totalShortage;
-                  if (deficit <= 0) {
-                    return (
-                      <div className="flex items-center text-emerald-600 font-medium">
-                        <span className="mr-2 text-lg">✅</span>
-                        Resources are balanced. No immediate action required.
+                      const actions = [];
+                      const allocation = result.allocation || [];
+
+                      const highPriority = allocation.filter(a => a.priority === 'critical' || a.priority === 'high');
+                      const lowPriority = allocation.filter(a => a.priority === 'low' || a.priority === 'medium');
+
+                      lowPriority.forEach(agent => {
+                        if (agent.allocated > 15) {
+                          const reduction = Math.min(10, Math.floor(agent.allocated * 0.12));
+                          actions.push({
+                            type: 'reduce',
+                            text: `⚠ Reduce ${agent.name} allocation by ${reduction} units to free up capacity.`
+                          });
+                        }
+                      });
+
+                      highPriority.forEach(agent => {
+                        if (agent.shortage) {
+                          actions.push({
+                            type: 'increase',
+                            text: `✅ Increase allocation to ${agent.name} to resolve critical shortage.`
+                          });
+                        }
+                      });
+
+                      const sortedActions = [...actions].sort((a, b) => (a.type === 'increase' ? -1 : 1)).slice(0, 5);
+
+                      return sortedActions.map((action, idx) => (
+                        <div key={idx} className={`rounded-lg p-4 text-sm font-semibold transition-all duration-200 hover:scale-[1.01] ${
+                          action.type === 'increase' ? 'bg-emerald-50 text-emerald-800 border border-emerald-100 shadow-sm shadow-emerald-50' : 'bg-amber-50 text-amber-800 border border-amber-100 shadow-sm shadow-amber-50'
+                        }`}>
+                          {action.text}
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </section>
+              )}
+
+              {result && beforeOptimization && (
+                <section className="bg-white rounded-xl shadow-sm p-6 transition duration-150 hover:shadow-md border border-slate-100">
+                  <h2 className="mb-6 text-lg font-semibold text-gray-800">
+                    Optimization Impact
+                  </h2>
+                  
+                  <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div className="rounded-lg bg-slate-50 p-4 border border-slate-100">
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">System Deficit</p>
+                      <div className="mt-2 flex items-baseline space-x-2">
+                        <span className="text-lg font-medium text-slate-400 line-through tracking-tight">{beforeOptimization.summary.totalShortage}</span>
+                        <span className="text-2xl font-bold text-emerald-600 tracking-tight">{result.summary.totalShortage}</span>
                       </div>
-                    );
-                  }
-
-                  const actions = [];
-                  const allocation = result.allocation || [];
-
-                  // Find low priority candidates for reduction
-                  const lowPriority = allocation.filter(a => a.priority === 'low' || a.priority === 'medium');
-                  const highPriority = allocation.filter(a => a.priority === 'critical' || a.priority === 'high');
-
-                  // Rule 1: Reduce low priority if they have significant allocation
-                  lowPriority.forEach(agent => {
-                    if (agent.allocated > 10) {
-                      actions.push({
-                        type: 'reduce',
-                        text: `⚠ Reduce ${agent.name} allocation by ${Math.min(10, Math.floor(agent.allocated * 0.15))} units to free up power.`
-                      });
-                    }
-                  });
-
-                  // Rule 2: Increase high priority if they have shortages
-                  highPriority.forEach(agent => {
-                    if (agent.shortage) {
-                      actions.push({
-                        type: 'increase',
-                        text: `✅ Increase allocation to ${agent.name} to mitigate critical deficit.`
-                      });
-                    }
-                  });
-
-                  // Sort and limit to 4 recommendations
-                  const sortedActions = [...actions].sort((a, b) => (a.type === 'increase' ? -1 : 1)).slice(0, 4);
-
-                  return sortedActions.map((action, idx) => (
-                    <div key={idx} className={`rounded-lg p-3 text-sm font-medium ${
-                      action.type === 'increase' ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' : 'bg-amber-50 text-amber-800 border border-amber-100'
-                    }`}>
-                      {action.text}
+                      <p className="mt-1 text-xs font-bold text-emerald-600">
+                        Net improvement: {beforeOptimization.summary.totalShortage - result.summary.totalShortage} units
+                      </p>
                     </div>
-                  ));
-                })()}
-              </div>
-            </section>
-          )}
+                    
+                    <div className="rounded-lg bg-slate-50 p-4 border border-slate-100">
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Allocated Power</p>
+                      <div className="mt-2 flex items-baseline space-x-2">
+                        <span className="text-lg font-medium text-slate-400 tracking-tight">{beforeOptimization.summary.totalAllocated}</span>
+                        <span className="text-xl font-bold text-slate-700">→</span>
+                        <span className="text-2xl font-bold text-slate-900 tracking-tight">{result.summary.totalAllocated}</span>
+                      </div>
+                    </div>
 
-          {hasSimulated && result && beforeOptimization && (
-            <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-6 text-lg font-semibold text-slate-800">
-                Optimization Impact
-              </h2>
-              
-              <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div className="rounded-lg bg-slate-50 p-4 border border-slate-100">
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">System Deficit</p>
-                  <div className="mt-2 flex items-baseline space-x-2">
-                    <span className="text-lg font-medium text-slate-400 line-through">{beforeOptimization.summary.totalShortage}</span>
-                    <span className="text-2xl font-bold text-emerald-600">{result.summary.totalShortage}</span>
-                  </div>
-                  <p className="mt-1 text-xs font-medium text-emerald-600">
-                    Net improvement: {beforeOptimization.summary.totalShortage - result.summary.totalShortage} units
-                  </p>
-                </div>
-                
-                <div className="rounded-lg bg-slate-50 p-4 border border-slate-100">
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Allocated Power</p>
-                  <div className="mt-2 flex items-baseline space-x-2">
-                    <span className="text-lg font-medium text-slate-400">{beforeOptimization.summary.totalAllocated}</span>
-                    <span className="text-xl font-bold text-slate-700">→</span>
-                    <span className="text-2xl font-bold text-slate-900">{result.summary.totalAllocated}</span>
-                  </div>
-                </div>
-
-                <div className="rounded-lg bg-slate-50 p-4 border border-slate-100">
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Critical Status</p>
-                  <div className="mt-2 flex items-baseline space-x-2">
-                    <span className="text-lg font-medium text-slate-400">{beforeOptimization.summary.criticalShortageCount}</span>
-                    <span className="text-xl font-bold text-slate-700">→</span>
-                    <span className={`text-2xl font-bold ${result.summary.criticalShortageCount < beforeOptimization.summary.criticalShortageCount ? 'text-emerald-600' : 'text-slate-900'}`}>
-                      {result.summary.criticalShortageCount}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-slate-500 font-medium">Critical shortages resolved</p>
-                </div>
-              </div>
-
-              <div className="overflow-hidden rounded-lg border border-slate-100">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500">
-                    <tr>
-                      <th className="px-4 py-3">Service Name</th>
-                      <th className="px-4 py-3">Before</th>
-                      <th className="px-4 py-3">After</th>
-                      <th className="px-4 py-3 text-right">Change</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {result.allocation.map((agent, idx) => {
-                      const prev = beforeOptimization.allocation.find(a => a.name === agent.name);
-                      const diff = agent.allocated - (prev?.allocated || 0);
-                      
-                      return (
-                        <tr key={agent.name} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3 font-semibold text-slate-700">{agent.name}</td>
-                          <td className="px-4 py-3 text-slate-500">{prev?.allocated}</td>
-                          <td className="px-4 py-3 font-bold text-slate-900">{agent.allocated}</td>
-                          <td className={`px-4 py-3 text-right font-bold ${diff > 0 ? 'text-emerald-600' : diff < 0 ? 'text-red-500' : 'text-slate-400'}`}>
-                            {diff > 0 ? `↑ +${diff}` : diff < 0 ? `↓ ${diff}` : '—'}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
-
-          {hasSimulated && result && (
-            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-              <div className="w-full rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 className="mb-6 text-lg font-semibold text-slate-800">
-                  Agent Allocation Details
-                </h2>
-                <div className="flex items-center justify-center">
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart
-                      layout="vertical"
-                      data={chartData}
-                      margin={{ top: 10, right: 30, left: 20, bottom: 10 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E5E7EB" />
-                      <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} />
-                      <YAxis
-                        type="category"
-                        dataKey="name"
-                        width={120}
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 13, fill: '#374151', fontWeight: 500 }}
-                      />
-                      <Tooltip 
-                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                      />
-                      <Legend verticalAlign="top" align="right" iconType="rect" height={36} />
-                      <Bar dataKey="allocated" fill="#22C55E" radius={[0, 4, 4, 0]} name="Allocated" />
-                      <Bar dataKey="demand" fill="#6366F1" radius={[0, 4, 4, 0]} name="Demand" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="flex h-full flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 className="mb-6 text-lg font-semibold text-slate-800">
-                  Resource Priority Distribution
-                </h2>
-                <ResponsiveContainer width="100%" height={400}>
-                  <PieChart>
-                    <Pie
-                      data={priorityData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={80}
-                      outerRadius={120}
-                      paddingAngle={5}
-                      cornerRadius={8}
-                    >
-                      {priorityData.map((entry) => (
-                        <Cell
-                          key={entry.name}
-                          fill={PRIORITY_STYLES[entry.name].chart}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend verticalAlign="bottom" height={40} iconType="circle" />
-                    <text
-                      x="50%"
-                      y="48%"
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      className="text-3xl font-extrabold fill-slate-900"
-                    >
-                      {result?.summary?.totalShortage}
-                    </text>
-                    <text
-                      x="50%"
-                      y="58%"
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      className="text-xs font-bold uppercase tracking-[0.2em] fill-slate-400"
-                    >
-                      shortage
-                    </text>
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          )}
-
-          {hasSimulated && result && (
-            <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-6 text-lg font-semibold text-slate-800">Detailed Agent Status</h2>
-              <div className="space-y-4">
-                {result?.allocation?.map((agent) => {
-                  const styles = PRIORITY_STYLES[agent.priority] ?? PRIORITY_STYLES.low;
-
-                  return (
-                    <div
-                      key={agent.name}
-                      className={`rounded-xl border-l-4 ${styles.border} bg-white p-5 border border-slate-100 shadow-sm transition-all hover:shadow-md`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-bold text-slate-900">
-                          {agent.name}
-                        </h3>
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${styles.badge}`}
-                        >
-                          {agent.priority}
+                    <div className="rounded-lg bg-slate-50 p-4 border border-slate-100">
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Critical Status</p>
+                      <div className="mt-2 flex items-baseline space-x-2">
+                        <span className="text-lg font-medium text-slate-400 tracking-tight">{beforeOptimization.summary.criticalShortageCount}</span>
+                        <span className="text-xl font-bold text-slate-700">→</span>
+                        <span className={`text-2xl font-bold tracking-tight ${result.summary.criticalShortageCount < beforeOptimization.summary.criticalShortageCount ? 'text-emerald-600' : 'text-slate-900'}`}>
+                          {result.summary.criticalShortageCount}
                         </span>
                       </div>
+                      <p className="mt-1 text-xs text-slate-500 font-bold">Critical shortages resolved</p>
+                    </div>
+                  </div>
 
-                      <div className="mt-4 flex items-center space-x-8 text-sm">
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Demand</span>
-                          <span className="mt-0.5 text-base font-semibold text-slate-700">{agent.demand}</span>
+                  <div className="overflow-hidden rounded-lg border border-slate-100">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                        <tr>
+                          <th className="px-5 py-4">Service Name</th>
+                          <th className="px-5 py-4">Before</th>
+                          <th className="px-5 py-4">After</th>
+                          <th className="px-5 py-4 text-right">Change</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700">
+                        {result.allocation.map((agent) => {
+                          const prev = beforeOptimization.allocation.find(a => a.name === agent.name);
+                          const diff = agent.allocated - (prev?.allocated || 0);
+                          
+                          return (
+                            <tr key={agent.name} className="hover:bg-slate-50 transition-colors group">
+                              <td className="px-5 py-4 font-bold text-slate-800">{agent.name}</td>
+                              <td className="px-5 py-4 text-slate-400 font-medium">{prev?.allocated}</td>
+                              <td className="px-5 py-4 font-extrabold text-slate-900">{agent.allocated}</td>
+                              <td className={`px-5 py-4 text-right font-extrabold ${diff > 0 ? 'text-emerald-600' : diff < 0 ? 'text-red-500' : 'text-slate-300'}`}>
+                                {diff > 0 ? `↑ +${diff}` : diff < 0 ? `↓ ${diff}` : '—'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+
+              <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+                <section className="bg-white rounded-xl shadow-sm p-6 transition duration-150 hover:shadow-md border border-slate-100">
+                  <h2 className="mb-6 text-lg font-semibold text-gray-800">
+                    Agent Allocation Details
+                  </h2>
+                  <div className="h-[320px] flex items-center justify-center">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        layout="vertical"
+                        data={chartData}
+                        margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
+                        barCategoryGap="25%"
+                      >
+                        <defs>
+                          <filter id="barShadow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
+                            <feOffset dx="1" dy="1" result="offsetblur" />
+                            <feComponentTransfer>
+                              <feFuncA type="linear" slope="0.2" />
+                            </feComponentTransfer>
+                            <feMerge>
+                              <feMergeNode />
+                              <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                          </filter>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#F8FAFC" />
+                        <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94A3B8', fontWeight: 600 }} />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          width={140}
+                          axisLine={false}
+                          tickLine={false}
+                          tick={(props) => {
+                            const { x, y, payload } = props;
+                            const agent = result.allocation.find(a => a.name === payload.value);
+                            if (!agent) return null;
+                            const status = getServiceStatus(agent.allocated, agent.demand);
+                            const emoji = status.label === "Critical" ? "🔴" : status.label === "Warning" ? "🟡" : "🟢";
+                            
+                            return (
+                              <g transform={`translate(${x},${y})`}>
+                                <text x={-135} y={0} dy={4} textAnchor="start" fill="#475569" fontSize={11} fontWeight={700}>
+                                  {payload.value.length > 15 ? `${payload.value.substring(0, 12)}...` : payload.value}
+                                </text>
+                                <text x={-5} y={0} dy={4} textAnchor="end" fontSize={11}>
+                                  {emoji}
+                                </text>
+                              </g>
+                            );
+                          }}
+                        />
+                        <Tooltip 
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: '600' }}
+                          cursor={{ fill: '#F8FAFC' }}
+                        />
+                        <Legend verticalAlign="top" align="right" iconType="circle" height={36} />
+                        <Bar dataKey="allocated" fill="#22C55E" radius={[0, 6, 6, 0]} name="Allocated" filter="url(#barShadow)" />
+                        <Bar dataKey="demand" fill="#6366F1" radius={[0, 6, 6, 0]} name="Demand" filter="url(#barShadow)" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </section>
+
+                <section className="bg-white rounded-xl shadow-sm p-6 transition duration-150 hover:shadow-md border border-slate-100 flex flex-col items-center justify-center">
+                  <h2 className="mb-6 text-lg font-semibold text-gray-800 w-full text-left">
+                    Resource Priority Distribution
+                  </h2>
+                  <div className="h-[320px] w-full flex items-center justify-center">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={priorityData}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={70}
+                          outerRadius={105}
+                          paddingAngle={3}
+                          cornerRadius={8}
+                          stroke="none"
+                          labelLine={false}
+                          label={({ percent }) => {
+                            if (percent < 0.05) return null;
+                            return `${(percent * 100).toFixed(0)}%`;
+                          }}
+                        >
+                          {priorityData.map((entry, index) => (
+                            <Cell
+                              key={index}
+                              fill={PRIORITY_STYLES[entry.name].chart}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value, name, props) => [props.payload.originalValue, name]}
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: '600' }}
+                        />
+                        <Legend 
+                          verticalAlign="bottom" 
+                          height={36} 
+                          iconType="circle"
+                          formatter={(value) => {
+                            const original = priorityData.find(d => d.name === value);
+                            return `${value} (${original?.originalValue || 0})`;
+                          }}
+                        />
+                        <text
+                          x="50%"
+                          y="48%"
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          className="text-3xl font-extrabold fill-slate-900 tracking-tight"
+                        >
+                          {result?.summary?.totalShortage}
+                        </text>
+                        <text
+                          x="50%"
+                          y="56%"
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          className="text-[10px] font-bold uppercase tracking-[0.3em] fill-slate-400"
+                        >
+                          shortage
+                        </text>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </section>
+              </div>
+
+              <section className="bg-white rounded-xl shadow-sm p-6 transition duration-150 hover:shadow-md border border-slate-100">
+                <h2 className="mb-6 text-lg font-semibold text-gray-800">Detailed Agent Status</h2>
+                <div className="space-y-4">
+                  {result?.allocation?.map((agent) => {
+                    const styles = PRIORITY_STYLES[agent.priority] ?? PRIORITY_STYLES.low;
+
+                    return (
+                      <div
+                        key={agent.name}
+                        className={`rounded-xl border-l-4 ${styles.border} ${styles.bg} p-6 shadow-sm transition duration-150 hover:shadow-md cursor-pointer ${highlightedAgents.includes(agent.name) ? "ring-2 ring-emerald-400 ring-offset-2 scale-[1.02]" : ""}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <h3 className="text-lg font-bold text-slate-900">
+                              {agent.name}
+                            </h3>
+                            {(() => {
+                              const status = getServiceStatus(agent.allocated, agent.demand);
+                              return (
+                                <span className={`rounded border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest ${status.color}`}>
+                                  {status.label}
+                                </span>
+                              );
+                            })()}
+                          </div>
+                          <span
+                            className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${styles.badge}`}
+                          >
+                            {agent.priority}
+                          </span>
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Allocated</span>
-                          <span className="mt-0.5 text-base font-semibold text-slate-700">{agent.allocated}</span>
-                        </div>
-                        {agent.shortage && (
+
+                        <div className="mt-4 flex items-center space-x-10 text-sm text-slate-700">
                           <div className="flex flex-col">
-                            <span className="text-xs font-bold uppercase tracking-wider text-red-400">Deficit</span>
-                            <span className="mt-0.5 text-base font-bold text-red-600">-{agent.shortageAmount}</span>
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Demand</span>
+                            <span className="mt-1 text-base font-bold text-slate-800">{agent.demand}</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Allocated</span>
+                            <span className={`mt-1 text-base font-extrabold transition-all duration-500 ${highlightedAgents.includes(agent.name) ? "text-emerald-600 scale-110" : "text-slate-800"}`}>
+                              {agent.allocated}
+                            </span>
+                          </div>
+                        </div>
+
+                        {agent.shortage && (
+                          <div className="mt-4 flex items-center font-bold text-red-600 text-sm bg-red-100/50 w-fit px-3 py-1 rounded-full border border-red-100">
+                            <span className="mr-1.5">⚠</span>
+                            Shortage: {agent.shortageAmount}
                           </div>
                         )}
-                      </div>
 
-                      <div className="mt-4 rounded-lg bg-slate-50 p-4">
-                        <p className="text-sm leading-relaxed text-slate-600">
-                          <span className="mr-2 font-bold text-slate-400 text-xs uppercase">Analysis:</span>
+                        <p className="mt-3 text-sm italic text-slate-500 leading-relaxed font-medium">
                           {agent.reasoning}
                         </p>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          )}
+                    );
+                  })}
+                </div>
+              </section>
 
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-6 text-lg font-semibold text-slate-800">AI Strategic Insights</h2>
-            {hasSimulated && result?.insights?.length ? (
-              <div className="space-y-4">
-                {result.insights.map((insight, index) => (
-                  <div
-                    key={index}
-                    className="flex items-start rounded-xl border border-slate-100 bg-slate-50/50 p-5 text-slate-700 transition-all hover:bg-slate-50"
-                  >
-                    <div className="mr-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                      💡
+              <section className="bg-white rounded-xl shadow-sm p-6 transition duration-150 hover:shadow-md border border-slate-100">
+                <h2 className="mb-6 text-lg font-semibold text-gray-800">AI Strategic Insights</h2>
+                <div className="space-y-3">
+                  {result.insights.map((insight, index) => (
+                    <div
+                      key={index}
+                      className="flex items-start rounded-xl border border-slate-100 bg-slate-50/50 p-6 text-slate-700 transition duration-150 hover:bg-slate-100/50 cursor-default"
+                    >
+                      <div className="mr-4 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 shadow-sm border border-blue-100 text-xl">
+                        💡
+                      </div>
+                      <p className="text-sm font-semibold leading-relaxed py-1">{insight}</p>
                     </div>
-                    <p className="text-sm font-medium leading-relaxed">{insight}</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-lg border-2 border-dashed border-slate-200 p-8 text-center text-slate-400">
-                Strategic insights will be generated upon simulation completion
-              </div>
-            )}
-          </section>
+                  ))}
+                </div>
+              </section>
+
+              <section className="bg-white rounded-xl shadow-sm p-6 transition duration-150 hover:shadow-md border border-slate-100">
+                <h2 className="mb-4 text-lg font-semibold text-slate-800 flex items-center">
+                  AI Tactical Recommendations
+                </h2>
+                <div className="space-y-3">
+                  {(() => {
+                    const recommendations = [];
+                    const criticalShortages = result.allocation.filter(item => item.priority === "critical" && item.shortage);
+                    const highShortages = result.allocation.filter(item => item.priority === "high" && item.shortage);
+
+                    if (criticalShortages.length > 0) {
+                      recommendations.push("Increase allocation to critical services immediately to prevent system failure.");
+                    }
+                    if (highShortages.length > 0) {
+                      recommendations.push("Rebalance resources from medium/low priority services to cover high-priority gaps.");
+                    }
+                    if (result.summary.totalShortage > 0) {
+                      recommendations.push("Current demand exceeds supply. Consider increasing total power supply capacity.");
+                    }
+                    if (recommendations.length === 0) {
+                      recommendations.push("System allocation is currently optimal. No immediate intervention required.");
+                    }
+
+                    return recommendations.map((rec, index) => (
+                      <div
+                        key={index}
+                        className="bg-blue-50 border border-blue-100 text-blue-700 p-5 rounded-xl flex items-start gap-4 transition-all duration-200 hover:bg-blue-100/50 cursor-pointer shadow-sm shadow-blue-50/50"
+                      >
+                        <span className="text-xl">🧠</span>
+                        <p className="text-sm font-bold leading-relaxed">{rec}</p>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </section>
+            </div>
+          )}
         </main>
       </div>
     </div>
