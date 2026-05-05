@@ -1,7 +1,10 @@
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const PRIMARY_MODEL = 'google/gemma-2-9b-it:free';
-const FALLBACK_MODEL = 'meta-llama/llama-3-8b-instruct:free';
-const OPENROUTER_API_KEY = import.meta.env?.VITE_OPENROUTER_API_KEY;
+const PRIMARY_MODEL = 'openrouter/free';
+const FALLBACK_MODELS = [
+  'google/gemma-2-9b-it:free',
+  'meta-llama/llama-3.2-3b-instruct:free',
+];
+const OPENROUTER_API_KEY = import.meta.env?.VITE_OPENROUTER_API_KEY?.trim();
 const DEBUG_AI = true;
 
 function getAgentDemand(agent, severity) {
@@ -115,12 +118,38 @@ function mergeReasoning(allocationResult, aiResult) {
   );
 }
 
+function buildLocalReasoning(entry) {
+  const allocated = Number.isFinite(entry.allocated) ? entry.allocated : 0;
+  const demand = Number.isFinite(entry.demand) ? entry.demand : 0;
+
+  if (allocated >= demand * 0.98) {
+    return 'Resources were prioritized to satisfy this service under the current demand profile.';
+  }
+
+  if (allocated > 0) {
+    return 'Lower priority allocation was reduced under constraints while preserving partial service coverage.';
+  }
+
+  return 'Allocation deferred due to higher priority critical services under limited power.';
+}
+
+function applyLocalReasoning(allocationResult) {
+  return allocationResult.map((entry) =>
+    normalizeAllocationEntry({
+      ...entry,
+      reasoning: entry.reasoning || buildLocalReasoning(entry),
+    }),
+  );
+}
+
 async function requestAICompletion(prompt, model) {
   const response = await fetch(OPENROUTER_URL, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${OPENROUTER_API_KEY}`,
       'Content-Type': 'application/json',
+      'HTTP-Referer': window.location.origin,
+      'X-Title': 'UrbanShield',
     },
     body: JSON.stringify({
       model,
@@ -134,32 +163,51 @@ async function requestAICompletion(prompt, model) {
   });
 
   if (!response.ok) {
-    throw new Error(`OpenRouter request failed for ${model}`);
+    let details = '';
+
+    try {
+      details = await response.text();
+    } catch {
+      details = 'Unable to read OpenRouter error body';
+    }
+
+    throw new Error(
+      `OpenRouter request failed for ${model}: ${response.status} ${response.statusText} ${details}`,
+    );
   }
 
   return response;
 }
 
+async function requestAICompletionWithFallback(prompt) {
+  const models = [PRIMARY_MODEL, ...FALLBACK_MODELS];
+  let lastError;
+
+  for (const model of models) {
+    try {
+      return await requestAICompletion(prompt, model);
+    } catch (error) {
+      lastError = error;
+
+      if (DEBUG_AI) {
+        console.warn(`AI model unavailable, trying next free model: ${model}`);
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 export async function enhanceAllocation(input, allocationResult) {
   if (!OPENROUTER_API_KEY) {
-    return allocationResult.map(normalizeAllocationEntry);
+    return applyLocalReasoning(allocationResult);
   }
 
   try {
     const allocationContext = buildAllocationContext(input, allocationResult);
     const prompt = buildPrompt(input, allocationContext);
 
-    let response;
-
-    try {
-      response = await requestAICompletion(prompt, PRIMARY_MODEL);
-    } catch (primaryError) {
-      if (DEBUG_AI) {
-        console.warn('Primary AI model failed, retrying fallback:', primaryError);
-      }
-
-      response = await requestAICompletion(prompt, FALLBACK_MODEL);
-    }
+    const response = await requestAICompletionWithFallback(prompt);
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
@@ -181,6 +229,6 @@ export async function enhanceAllocation(input, allocationResult) {
     return mergeReasoning(allocationResult, parsedOutput);
   } catch (error) {
     console.error('AI enhancement failed:', error);
-    return allocationResult.map(normalizeAllocationEntry);
+    return applyLocalReasoning(allocationResult);
   }
 }
