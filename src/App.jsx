@@ -25,26 +25,26 @@ const SCENARIOS = [
 const PRIORITY_STYLES = {
   critical: {
     border: "border-red-500",
-    bg: "bg-red-50",
-    badge: "bg-red-100 text-red-600 border border-red-200",
+    bg: "bg-red-500/10",
+    badge: "bg-red-500/15 text-red-200 border border-red-400/30",
     chart: "#ef4444",
   },
   high: {
     border: "border-orange-400",
-    bg: "bg-orange-50",
-    badge: "bg-orange-100 text-orange-600 border border-orange-200",
+    bg: "bg-orange-500/10",
+    badge: "bg-orange-500/15 text-orange-200 border border-orange-400/30",
     chart: "#f97316",
   },
   medium: {
     border: "border-yellow-400",
-    bg: "bg-yellow-50",
-    badge: "bg-yellow-100 text-yellow-700 border border-yellow-200",
+    bg: "bg-yellow-500/10",
+    badge: "bg-yellow-500/15 text-yellow-100 border border-yellow-400/30",
     chart: "#eab308",
   },
   low: {
     border: "border-green-400",
-    bg: "bg-green-50",
-    badge: "bg-green-100 text-green-600 border border-green-200",
+    bg: "bg-green-500/10",
+    badge: "bg-green-500/15 text-green-200 border border-green-400/30",
     chart: "#22c55e",
   },
 };
@@ -81,8 +81,8 @@ function App() {
       return {
         label: "Fully Satisfied",
         dot: "#22c55e",
-        bg: "#DCFCE7",
-        text: "#16A34A",
+        bg: "rgba(34, 197, 94, 0.14)",
+        text: "#86efac",
       };
     }
 
@@ -90,16 +90,16 @@ function App() {
       return {
         label: "Partial Allocation",
         dot: "#eab308",
-        bg: "#FEF3C7",
-        text: "#D97706",
+        bg: "rgba(234, 179, 8, 0.14)",
+        text: "#fde68a",
       };
     }
 
     return {
       label: "No Allocation",
       dot: "#ef4444",
-      bg: "#FEE2E2",
-      text: "#DC2626",
+      bg: "rgba(239, 68, 68, 0.14)",
+      text: "#fca5a5",
     };
   };
 
@@ -158,18 +158,18 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8 font-sans text-slate-900">
-      <header className="mb-8 border-b border-slate-200 pb-4">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+    <div className="min-h-screen bg-[#0f172a] p-8 font-sans text-slate-100">
+      <header className="mb-10 border-b border-white/10 pb-5">
+        <h1 className="text-3xl font-bold tracking-tight text-white">
           UrbanShield
         </h1>
-        <p className="text-slate-500">Disaster-Response Simulation Dashboard</p>
+        <p className="mt-1 text-sm font-medium text-slate-400">Disaster-Response Simulation Dashboard</p>
       </header>
 
       <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
         <aside className="space-y-6 md:col-span-1">
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition duration-150 hover:shadow-md">
-            <h2 className="mb-4 text-lg font-semibold text-gray-800">
+          <section className="rounded-2xl border border-white/10 bg-slate-900/70 p-6 shadow-xl shadow-black/20 backdrop-blur transition-all duration-300 hover:scale-[1.01] hover:border-blue-400/30">
+            <h2 className="mb-4 text-lg font-bold text-white">
               Scenario Selector
             </h2>
             <div className="space-y-2">
@@ -179,8 +179,8 @@ function App() {
                   onClick={() => setScenario(item.key)}
                   className={`w-full rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-all active:scale-95 cursor-pointer ${
                     scenario === item.key
-                      ? "bg-blue-600 text-white shadow-md shadow-blue-100"
-                      : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+                      ? "bg-blue-500 text-white shadow-lg shadow-blue-950/40"
+                      : "bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
                   }`}
                 >
                   {item.label}
@@ -189,16 +189,16 @@ function App() {
             </div>
           </section>
 
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition duration-150 hover:shadow-md">
-            <h2 className="mb-4 text-lg font-semibold text-gray-800">
+          <section className="rounded-2xl border border-white/10 bg-slate-900/70 p-6 shadow-xl shadow-black/20 backdrop-blur transition-all duration-300 hover:scale-[1.01] hover:border-blue-400/30">
+            <h2 className="mb-4 text-lg font-bold text-white">
               Simulation Inputs
             </h2>
 
             <div className="space-y-4">
               <div>
-                <div className="flex justify-between text-sm font-medium text-slate-700">
+                <div className="flex justify-between text-sm font-medium text-slate-400">
                   <span>Severity</span>
-                  <span className="text-blue-600 font-bold">{severity}</span>
+                  <span className="text-blue-300 font-bold">{severity}</span>
                 </div>
                 <input
                   type="range"
@@ -206,35 +206,35 @@ function App() {
                   max="10"
                   value={severity}
                   onChange={(event) => setSeverity(Number(event.target.value))}
-                  className="mt-2 w-full accent-blue-600 cursor-pointer transition duration-150"
+                  className="mt-2 w-full accent-blue-400 cursor-pointer transition-all duration-300"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700">
+                <label className="block text-sm font-medium text-slate-400">
                   Total Power Supply
                 </label>
                 <input
                   type="number"
                   value={totalPower}
                   onChange={(event) => setTotalPower(Number(event.target.value))}
-                  className="mt-2 w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-150 text-slate-900 font-medium"
+                  className="mt-2 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-medium text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
 
               <button
                 onClick={handleSimulation}
                 disabled={loading}
-                className={`w-full rounded-lg px-4 py-3 font-bold text-white shadow-md transition duration-150 active:scale-95 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
-                  loading ? "bg-slate-400 shadow-none" : "bg-green-500 hover:bg-green-600 shadow-green-100"
+                className={`w-full rounded-lg px-4 py-3 font-bold text-white shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-95 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
+                  loading ? "bg-slate-600 shadow-none" : "bg-emerald-500 hover:bg-emerald-400 shadow-emerald-950/40"
                 }`}
               >
                 {loading ? "Simulating..." : "Run Simulation"}
               </button>
 
               {loading && (
-                <div className="flex items-center justify-center space-x-2 mt-2 text-slate-500 text-xs font-medium animate-pulse">
-                  <div className="h-3 w-3 border-2 border-slate-300 border-t-green-500 rounded-full animate-spin"></div>
+                <div className="flex items-center justify-center space-x-2 mt-2 text-slate-400 text-xs font-medium animate-pulse">
+                  <div className="h-3 w-3 border-2 border-slate-600 border-t-emerald-400 rounded-full animate-spin"></div>
                   <span>Running allocation model...</span>
                 </div>
               )}
@@ -242,7 +242,7 @@ function App() {
               {hasSimulated && (
                 <button
                   onClick={handleReset}
-                  className="w-full rounded-lg bg-gray-200 px-4 py-3 font-bold text-slate-600 transition duration-150 hover:bg-gray-300 active:scale-95 cursor-pointer"
+                  className="w-full rounded-lg border border-white/10 bg-white/10 px-4 py-3 font-bold text-slate-200 transition-all duration-300 hover:scale-[1.02] hover:bg-white/15 active:scale-95 cursor-pointer"
                 >
                   Reset Scenario
                 </button>
@@ -251,40 +251,40 @@ function App() {
           </section>
         </aside>
 
-        <main className={`md:col-span-3 space-y-6 transition duration-150 ${hasSimulated ? "opacity-100 translate-y-0" : "opacity-100"}`}>
+        <main className={`md:col-span-3 space-y-8 transition-all duration-300 ${hasSimulated ? "opacity-100 translate-y-0" : "opacity-100"}`}>
           {!hasSimulated ? (
-            <div className="flex min-h-[600px] flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-white p-12 text-center shadow-sm transition-all duration-200 hover:shadow-md">
+            <div className="flex min-h-[600px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-slate-900/60 p-12 text-center shadow-xl shadow-black/20 backdrop-blur transition-all duration-300 hover:scale-[1.01] hover:border-blue-400/30">
               <div className="mb-6 text-6xl">📊</div>
-              <h2 className="mb-2 text-2xl font-bold text-slate-800">
+              <h2 className="mb-2 text-2xl font-bold text-white">
                 Ready to Simulate
               </h2>
-              <p className="max-w-md text-slate-500 text-sm leading-relaxed">
+              <p className="max-w-md text-slate-400 text-sm leading-relaxed">
                 Configure your disaster scenario and resource parameters on the left, then click 
-                <span className="mx-1 font-bold text-green-600">Run Simulation</span> 
+                <span className="mx-1 font-bold text-emerald-300">Run Simulation</span> 
                 to generate real-time allocation data and AI tactical insights.
               </p>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-8">
               {result && (
-                <div className="transition duration-150">
+                <div className="transition-all duration-300">
                   {result.summary.criticalShortageCount > 0 ? (
-                    <div className="bg-red-50 border border-red-200 text-red-800 p-6 rounded-xl flex items-center justify-between shadow-sm transition duration-150 hover:shadow-md">
+                    <div className="bg-red-500/10 border border-red-400/25 text-red-100 p-6 rounded-2xl flex items-center justify-between shadow-xl shadow-red-950/20 backdrop-blur transition-all duration-300 hover:scale-[1.01] hover:shadow-red-950/30">
                       <div>
                         <p className="font-bold flex items-center text-lg">
                           <span className="mr-2">🚨</span>
                           {result.summary.criticalShortageCount} Critical Systems Under Stress
                         </p>
-                        <p className="text-sm opacity-90 font-medium text-red-700">
+                        <p className="text-sm opacity-90 font-medium text-red-200/80">
                           Immediate attention required for essential services
                         </p>
                       </div>
-                      <span className="text-[10px] font-extrabold bg-red-100 text-red-900 px-4 py-1.5 rounded-full border border-red-200 uppercase tracking-widest shadow-sm">
+                      <span className="text-[10px] font-extrabold bg-red-400/15 text-red-100 px-4 py-1.5 rounded-full border border-red-300/25 uppercase tracking-widest shadow-sm">
                         High Priority
                       </span>
                     </div>
                   ) : (
-                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-6 rounded-xl flex items-center shadow-sm transition duration-150 hover:shadow-md font-bold text-base">
+                    <div className="bg-emerald-500/10 border border-emerald-400/25 text-emerald-100 p-6 rounded-2xl flex items-center shadow-xl shadow-emerald-950/20 backdrop-blur transition-all duration-300 hover:scale-[1.01] hover:shadow-emerald-950/30 font-bold text-base">
                       <span className="mr-2 text-xl">✅</span>
                       System Secure: All critical services are sufficiently allocated
                     </div>
@@ -292,51 +292,51 @@ function App() {
                 </div>
               )}
 
-              <section className="bg-white rounded-xl shadow-sm p-6 transition duration-150 hover:shadow-md border border-slate-100">
+              <section className="bg-slate-900/70 rounded-2xl shadow-xl shadow-black/20 p-6 transition-all duration-300 hover:scale-[1.01] hover:border-blue-400/30 border border-white/10 backdrop-blur">
                 <div className="mb-5 flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-gray-800">
+                  <h2 className="text-lg font-bold text-white">
                     System Overview
                   </h2>
-                  <div className="flex items-center space-x-2 rounded-full bg-slate-100 px-3 py-1 text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                  <div className="flex items-center space-x-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold text-slate-300 uppercase tracking-wider">
                     <span>Scenario: {getActiveScenarioLabel()}</span>
-                    <span className="text-slate-300">|</span>
+                    <span className="text-slate-600">|</span>
                     <span>Severity: {severity}</span>
                   </div>
                 </div>
                 {loading ? (
-                  <div className="flex items-center space-x-3 text-blue-600 py-10 justify-center">
-                    <div className="h-2 w-2 animate-bounce rounded-full bg-blue-600 [animation-delay:-0.3s]"></div>
-                    <div className="h-2 w-2 animate-bounce rounded-full bg-blue-600 [animation-delay:-0.15s]"></div>
-                    <div className="h-2 w-2 animate-bounce rounded-full bg-blue-600"></div>
+                  <div className="flex items-center space-x-3 text-blue-300 py-10 justify-center">
+                    <div className="h-2 w-2 animate-bounce rounded-full bg-blue-300 [animation-delay:-0.3s]"></div>
+                    <div className="h-2 w-2 animate-bounce rounded-full bg-blue-300 [animation-delay:-0.15s]"></div>
+                    <div className="h-2 w-2 animate-bounce rounded-full bg-blue-300"></div>
                     <span className="font-bold text-sm tracking-tight">ANALYZING RESOURCE FLOWS...</span>
                   </div>
                 ) : result && (
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-5">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/10 transition-all duration-300 hover:scale-[1.02]">
                       <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
                         Total Demand
                       </p>
-                      <p className="mt-1 text-3xl font-bold text-slate-900 tracking-tight">
+                      <p className="mt-1 text-3xl font-bold text-white tracking-tight">
                         {formatNumber(result?.summary?.totalDemand)}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-5">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/10 transition-all duration-300 hover:scale-[1.02]">
                       <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
                         Total Allocated
                       </p>
-                      <p className="mt-1 text-3xl font-bold text-slate-900 tracking-tight">
+                      <p className="mt-1 text-3xl font-bold text-white tracking-tight">
                         {formatNumber(result?.summary?.totalAllocated)}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-5">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/10 transition-all duration-300 hover:scale-[1.02]">
                       <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
                         System Deficit
                       </p>
                       <p
                         className={`mt-1 text-3xl font-bold tracking-tight ${
                           result?.summary?.totalShortage > 0
-                            ? "text-red-600"
-                            : "text-emerald-600"
+                            ? "text-red-300"
+                            : "text-emerald-300"
                         }`}
                       >
                         {formatNumber(result?.summary?.totalShortage)}
@@ -347,8 +347,8 @@ function App() {
               </section>
 
               <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-                <section className="bg-white rounded-xl shadow-sm p-6 transition duration-150 hover:shadow-md border border-slate-100">
-                  <h2 className="mb-6 text-lg font-semibold text-gray-800">
+                <section className="bg-slate-900/70 rounded-2xl shadow-xl shadow-black/20 p-6 transition-all duration-300 hover:scale-[1.01] hover:border-blue-400/30 border border-white/10 backdrop-blur">
+                  <h2 className="mb-6 text-lg font-bold text-white">
                     Agent Allocation Details
                   </h2>
                   <div className="h-[320px] flex items-center justify-center">
@@ -372,7 +372,7 @@ function App() {
                             </feMerge>
                           </filter>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#F8FAFC" />
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(148, 163, 184, 0.14)" />
                         <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94A3B8', fontWeight: 600 }} />
                         <YAxis
                           type="category"
@@ -388,7 +388,7 @@ function App() {
                             
                             return (
                               <g transform={`translate(${x},${y})`}>
-                                <text x={-135} y={0} dy={4} textAnchor="start" fill="#475569" fontSize={11} fontWeight={700}>
+                                <text x={-135} y={0} dy={4} textAnchor="start" fill="#CBD5E1" fontSize={11} fontWeight={700}>
                                   {payload.value.length > 15 ? `${payload.value.substring(0, 12)}...` : payload.value}
                                 </text>
                                 <circle cx={-8} cy={0} r={5} fill={status.dot} />
@@ -397,8 +397,8 @@ function App() {
                           }}
                         />
                         <Tooltip 
-                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: '600' }}
-                          cursor={{ fill: '#F8FAFC' }}
+                          contentStyle={{ borderRadius: '12px', border: '1px solid rgba(255,255,255,0.12)', background: '#111827', color: '#E5E7EB', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.35)', fontSize: '12px', fontWeight: '600' }}
+                          cursor={{ fill: 'rgba(148, 163, 184, 0.08)' }}
                         />
                         <Legend verticalAlign="top" align="right" iconType="circle" height={36} />
                         <Bar dataKey="allocated" fill="#22C55E" radius={[0, 6, 6, 0]} name="Allocated" filter="url(#barShadow)" />
@@ -408,8 +408,8 @@ function App() {
                   </div>
                 </section>
 
-                <section className="bg-white rounded-xl shadow-sm p-6 transition duration-150 hover:shadow-md border border-slate-100 flex flex-col items-center justify-center">
-                  <h2 className="mb-6 text-lg font-semibold text-gray-800 w-full text-left">
+                <section className="bg-slate-900/70 rounded-2xl shadow-xl shadow-black/20 p-6 transition-all duration-300 hover:scale-[1.01] hover:border-blue-400/30 border border-white/10 backdrop-blur flex flex-col items-center justify-center">
+                  <h2 className="mb-6 text-lg font-bold text-white w-full text-left">
                     Allocation Coverage
                   </h2>
                   <div className="h-[320px] w-full flex items-center justify-center">
@@ -441,7 +441,7 @@ function App() {
                         </Pie>
                         <Tooltip 
                           formatter={(value, name) => [formatNumber(value), name]}
-                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: '600' }}
+                          contentStyle={{ borderRadius: '12px', border: '1px solid rgba(255,255,255,0.12)', background: '#111827', color: '#E5E7EB', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.35)', fontSize: '12px', fontWeight: '600' }}
                         />
                         <Legend 
                           verticalAlign="bottom" 
@@ -457,7 +457,7 @@ function App() {
                           y="48%"
                           textAnchor="middle"
                           dominantBaseline="middle"
-                          className="text-3xl font-extrabold fill-slate-900 tracking-tight"
+                          className="text-3xl font-extrabold fill-white tracking-tight"
                         >
                           {formatNumber(result?.summary?.totalShortage)}
                         </text>
@@ -476,8 +476,8 @@ function App() {
                 </section>
               </div>
 
-              <section className="bg-white rounded-xl shadow-sm p-6 transition duration-150 hover:shadow-md border border-slate-100">
-                <h2 className="mb-6 text-lg font-semibold text-gray-800">Detailed Agent Status</h2>
+              <section className="bg-slate-900/70 rounded-2xl shadow-xl shadow-black/20 p-6 transition-all duration-300 hover:border-blue-400/30 border border-white/10 backdrop-blur">
+                <h2 className="mb-6 text-lg font-bold text-white">Detailed Agent Status</h2>
                 <div className="space-y-4">
                   {result?.allocation?.map((agent) => {
                     const styles = PRIORITY_STYLES[agent.priority] ?? PRIORITY_STYLES.low;
@@ -486,18 +486,18 @@ function App() {
                     return (
                       <div
                         key={agent.name}
-                        className={`rounded-xl border-l-4 ${styles.border} ${styles.bg} p-6 shadow-sm transition duration-150 hover:shadow-md cursor-pointer`}
+                        className={`rounded-2xl border border-white/10 border-l-4 ${styles.border} ${styles.bg} p-6 shadow-lg shadow-black/10 backdrop-blur transition-all duration-300 hover:scale-[1.01] hover:bg-white/10 cursor-pointer`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
-                            <h3 className="text-lg font-bold text-slate-900">
+                            <h3 className="text-lg font-bold text-white">
                               {agent.name}
                             </h3>
                             {(() => {
                               const status = getServiceStatus(agent.allocated, agent.demand);
                               return (
                                 <span
-                                  className="rounded border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest"
+                                  className="rounded border border-white/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest"
                                   style={{ backgroundColor: status.bg, color: status.text }}
                                 >
                                   {status.label}
@@ -512,34 +512,34 @@ function App() {
                           </span>
                         </div>
 
-                        <div className="mt-4 flex items-center space-x-10 text-sm text-slate-700">
+                        <div className="mt-4 flex items-center space-x-10 text-sm text-slate-300">
                           <div className="flex flex-col">
                             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Demand</span>
-                            <span className="mt-1 text-base font-bold text-slate-800">{formatNumber(agent.demand)}</span>
+                            <span className="mt-1 text-base font-bold text-white">{formatNumber(agent.demand)}</span>
                           </div>
                           <div className="flex flex-col">
                             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Allocated</span>
-                            <span className="mt-1 text-base font-extrabold text-slate-800">
+                            <span className="mt-1 text-base font-extrabold text-white">
                               {formatNumber(agent.allocated)}
                             </span>
                           </div>
                         </div>
 
                         {agent.shortage && (
-                          <div className="mt-4 flex items-center font-bold text-red-600 text-sm bg-red-100/50 w-fit px-3 py-1 rounded-full border border-red-100">
+                          <div className="mt-4 flex items-center font-bold text-red-200 text-sm bg-red-500/10 w-fit px-3 py-1 rounded-full border border-red-400/20">
                             <span className="mr-1.5">⚠</span>
                             Shortage: {formatNumber(agent.shortageAmount)}
                           </div>
                         )}
 
                         <div className="mt-4 space-y-1">
-                          <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-600">
+                          <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
                             🤖 AI Explanation
                           </div>
                           <p
                             style={{
                               fontSize: "0.85rem",
-                              color: "#666",
+                              color: "#CBD5E1",
                               fontStyle: "italic",
                               display: "-webkit-box",
                               WebkitLineClamp: 2,
@@ -556,15 +556,15 @@ function App() {
                 </div>
               </section>
 
-              <section className="bg-white rounded-xl shadow-sm p-6 transition duration-150 hover:shadow-md border border-slate-100">
-                <h2 className="mb-6 text-lg font-semibold text-gray-800">AI Strategic Insights</h2>
+              <section className="bg-slate-900/70 rounded-2xl shadow-xl shadow-black/20 p-6 transition-all duration-300 hover:border-blue-400/30 border border-white/10 backdrop-blur">
+                <h2 className="mb-6 text-lg font-bold text-white">AI Strategic Insights</h2>
                 <div className="space-y-3">
                   {result.insights.map((insight, index) => (
                     <div
                       key={index}
-                      className="flex items-start rounded-xl border border-slate-100 bg-slate-50/50 p-6 text-slate-700 transition duration-150 hover:bg-slate-100/50 cursor-default"
+                      className="flex items-start rounded-2xl border border-white/10 bg-white/5 p-6 text-slate-300 shadow-lg shadow-black/10 transition-all duration-300 hover:scale-[1.01] hover:bg-white/10 cursor-default"
                     >
-                      <div className="mr-4 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 shadow-sm border border-blue-100 text-xl">
+                      <div className="mr-4 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-200 shadow-sm border border-blue-400/20 text-xl">
                         💡
                       </div>
                       <p className="text-sm font-semibold leading-relaxed py-1">{insight}</p>
