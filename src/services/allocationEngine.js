@@ -5,12 +5,22 @@ const priorityWeights = {
   low: 0.25,
 };
 
+const priorityOrder = ['critical', 'high', 'medium', 'low'];
+
 function getPriorityWeight(priority) {
   return priorityWeights[priority] ?? 0;
 }
 
 function formatPower(value) {
   return Number(value.toFixed(2));
+}
+
+function getSeverityMultiplier(agent, severity) {
+  if (agent.priority === 'critical') {
+    return 1 + severity / 8;
+  }
+
+  return 1 + severity / 12;
 }
 
 function getReasoning(agent, allocated) {
@@ -31,9 +41,8 @@ function getReasoning(agent, allocated) {
 }
 
 export function allocateResources(input) {
-  const { scenario, severity, totalPower, agents } = input;
-  const severityMultiplier = 1 + severity / 10;
-  let remainingPower = totalPower;
+  const { severity, agents } = input;
+  let remainingPower = input.totalPower;
   const results = [];
 
   // Central place for resource allocation logic.
@@ -46,7 +55,7 @@ export function allocateResources(input) {
   );
   const adjustedAgents = sortedAgents.map((agent) => ({
     ...agent,
-    demand: agent.baseDemand * severityMultiplier,
+    demand: (agent.demand ?? agent.baseDemand ?? 0) * getSeverityMultiplier(agent, severity),
   }));
   const priorityGroups = adjustedAgents.reduce((groups, agent) => {
     groups[agent.priority] = groups[agent.priority] || [];
@@ -54,7 +63,7 @@ export function allocateResources(input) {
     return groups;
   }, {});
 
-  for (const priority of Object.keys(priorityWeights)) {
+  for (const priority of priorityOrder) {
     const group = priorityGroups[priority] || [];
 
     if (group.length === 0) {
@@ -87,7 +96,7 @@ export function allocateResources(input) {
       });
     }
 
-    remainingPower = 0;
+    remainingPower = Math.max(remainingPower - groupDemand, 0);
   }
 
   return results;

@@ -12,7 +12,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { runSimulation } from "./services/api";
+import { agents } from "./data/agents";
+import { runSimulation } from "./services/runSimulation";
 
 const SCENARIOS = [
   { key: "flood", label: "Flood" },
@@ -48,17 +49,26 @@ const PRIORITY_STYLES = {
   },
 };
 
+const DONUT_COLORS = {
+  Allocated: "#22c55e",
+  Shortage: "#ef4444",
+};
+
+const formatNumber = (num) => {
+  if (!Number.isFinite(num)) {
+    return 0;
+  }
+
+  return Number.isInteger(num) ? num : Number(num.toFixed(2));
+};
+
 function App() {
   const [scenario, setScenario] = useState("flood");
   const [severity, setSeverity] = useState(5);
   const [totalPower, setTotalPower] = useState(100);
   const [result, setResult] = useState(null);
-  const [beforeOptimization, setBeforeOptimization] = useState(null);
   const [hasSimulated, setHasSimulated] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [optimizing, setOptimizing] = useState(false);
-  const [optimizationMessage, setOptimizationMessage] = useState("");
-  const [highlightedAgents, setHighlightedAgents] = useState([]);
 
   const chartData = result?.allocation ?? [];
 
@@ -67,51 +77,73 @@ function App() {
   };
 
   const getServiceStatus = (allocated, demand) => {
-    const ratio = allocated / demand;
-    if (ratio < 0.6) return { label: "Critical", bg: "#FEE2E2", text: "#DC2626" };
-    if (ratio < 0.85) return { label: "Warning", bg: "#FEF3C7", text: "#D97706" };
-    return { label: "Stable", bg: "#DCFCE7", text: "#16A34A" };
+    if (allocated >= demand * 0.98) {
+      return {
+        label: "Fully Satisfied",
+        dot: "#22c55e",
+        bg: "#DCFCE7",
+        text: "#16A34A",
+      };
+    }
+
+    if (allocated > 0 && allocated < demand) {
+      return {
+        label: "Partial Allocation",
+        dot: "#eab308",
+        bg: "#FEF3C7",
+        text: "#D97706",
+      };
+    }
+
+    return {
+      label: "No Allocation",
+      dot: "#ef4444",
+      bg: "#FEE2E2",
+      text: "#DC2626",
+    };
   };
 
-  const priorityData = useMemo(() => {
-    return ["critical", "high", "medium", "low"].map((priority) => {
-      const realValue = chartData
-        .filter((agent) => agent.priority === priority)
-        .reduce((sum, agent) => sum + agent.allocated, 0);
-      
-      return {
-        name: priority,
-        originalValue: realValue,
-        // Use tiny value for zero to ensure it renders in the donut
-        value: realValue === 0 ? 0.0001 : realValue,
-      };
-    });
-  }, [chartData]);
+  const donutData = useMemo(() => {
+    if (!result) {
+      return [];
+    }
 
-  const buildInput = () => ({
-    city: "Bangalore",
-    scenario,
-    severity,
-    totalPower,
-  });
+    const allocated = result.summary.totalAllocated;
+    const shortage = result.summary.totalShortage;
 
-  const handleSimulate = async () => {
+    return [
+      { name: "Allocated", value: allocated },
+      { name: "Shortage", value: shortage },
+    ];
+  }, [result]);
+
+  function buildInput() {
+    return {
+      city: "Bangalore",
+      scenario,
+      severity: Number(severity),
+      totalPower: Number(totalPower),
+      agents: agents.map((agent) => ({
+        name: agent.name,
+        type: agent.type,
+        demand: agent.baseDemand,
+        priority: agent.priority,
+      })),
+    };
+  }
+
+  const handleSimulation = async () => {
     setLoading(true);
-    setOptimizationMessage("");
-    setBeforeOptimization(null);
-    setHighlightedAgents([]);
 
     try {
-      // Small delay to simulate AI processing/backend computation
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
       const input = buildInput();
+      console.log("INPUT:", input);
       const res = await runSimulation(input);
-
+      console.log("RESULT:", res);
       setResult(res);
       setHasSimulated(true);
     } catch (err) {
-      console.error(err);
+      console.error("Simulation failed:", err);
     } finally {
       setLoading(false);
     }
@@ -119,86 +151,10 @@ function App() {
 
   const handleReset = () => {
     setResult(null);
-    setBeforeOptimization(null);
     setHasSimulated(false);
     setScenario("flood");
     setSeverity(5);
     setTotalPower(100);
-    setOptimizationMessage("");
-    setHighlightedAgents([]);
-  };
-
-  const handleOptimize = () => {
-    if (!result) return;
-
-    setOptimizing(true);
-    setOptimizationMessage("");
-    
-    // Artificial delay for micro-interaction
-    setTimeout(() => {
-      // Capture state before optimization
-      setBeforeOptimization(JSON.parse(JSON.stringify(result)));
-
-      const newAllocation = [...result.allocation];
-      let pool = 0;
-      const changed = [];
-
-      // Phase 1: Harvest surplus from low priority (Utilities)
-      newAllocation.forEach((agent, idx) => {
-        if (agent.priority === "low" || agent.priority === "medium") {
-          const safeMin = Math.max(10, Math.floor(agent.demand * 0.4));
-          if (agent.allocated > safeMin) {
-            const reduction = agent.allocated - safeMin;
-            pool += reduction;
-            newAllocation[idx] = { ...agent, allocated: safeMin, shortage: true, shortageAmount: agent.demand - safeMin };
-            changed.push(agent.name);
-          }
-        }
-      });
-
-      // Phase 2: Redistribute to Critical then High
-      const targets = ["critical", "high", "medium"];
-      targets.forEach((prio) => {
-        newAllocation.forEach((agent, idx) => {
-          if (agent.priority === prio && agent.allocated < agent.demand && pool > 0) {
-            const needed = agent.demand - agent.allocated;
-            const transfer = Math.min(pool, needed);
-            pool -= transfer;
-            const newAllocated = agent.allocated + transfer;
-            newAllocation[idx] = { 
-              ...agent, 
-              allocated: newAllocated, 
-              shortage: newAllocated < agent.demand,
-              shortageAmount: Math.max(0, agent.demand - newAllocated)
-            };
-            if (transfer > 0) changed.push(agent.name);
-          }
-        });
-      });
-
-      const totalAllocated = newAllocation.reduce((sum, a) => sum + a.allocated, 0);
-      const totalShortage = newAllocation.reduce((sum, a) => sum + (a.demand - a.allocated), 0);
-      const criticalShortageCount = newAllocation.filter(a => a.priority === 'critical' && a.shortage).length;
-
-      setResult({
-        ...result,
-        allocation: newAllocation,
-        summary: {
-          ...result.summary,
-          totalAllocated,
-          totalShortage,
-          criticalShortageCount
-        }
-      });
-      
-      setHighlightedAgents(changed);
-      setOptimizing(false);
-      setOptimizationMessage("✅ Allocation optimized based on priority");
-      
-      // Clear highlights after 3 seconds
-      setTimeout(() => setHighlightedAgents([]), 3000);
-      setTimeout(() => setOptimizationMessage(""), 5000);
-    }, 800);
   };
 
   return (
@@ -267,7 +223,7 @@ function App() {
               </div>
 
               <button
-                onClick={handleSimulate}
+                onClick={handleSimulation}
                 disabled={loading}
                 className={`w-full rounded-lg px-4 py-3 font-bold text-white shadow-md transition duration-150 active:scale-95 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
                   loading ? "bg-slate-400 shadow-none" : "bg-green-500 hover:bg-green-600 shadow-green-100"
@@ -284,27 +240,12 @@ function App() {
               )}
 
               {hasSimulated && (
-                <div className="space-y-3">
-                  <button
-                    onClick={handleOptimize}
-                    disabled={optimizing}
-                    className="w-full rounded-lg bg-green-500 px-4 py-3 font-bold text-white shadow-md shadow-green-100 transition duration-150 hover:bg-green-600 active:scale-95 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
-                  >
-                    {optimizing ? "Optimizing..." : "Optimize Allocation"}
-                  </button>
-                  <button
-                    onClick={handleReset}
-                    className="w-full rounded-lg bg-gray-200 px-4 py-3 font-bold text-slate-600 transition duration-150 hover:bg-gray-300 active:scale-95 cursor-pointer"
-                  >
-                    Reset Scenario
-                  </button>
-                </div>
-              )}
-
-              {optimizationMessage && (
-                <p className="text-center text-xs font-medium text-emerald-600 animate-pulse">
-                  {optimizationMessage}
-                </p>
+                <button
+                  onClick={handleReset}
+                  className="w-full rounded-lg bg-gray-200 px-4 py-3 font-bold text-slate-600 transition duration-150 hover:bg-gray-300 active:scale-95 cursor-pointer"
+                >
+                  Reset Scenario
+                </button>
               )}
             </div>
           </section>
@@ -376,7 +317,7 @@ function App() {
                         Total Demand
                       </p>
                       <p className="mt-1 text-3xl font-bold text-slate-900 tracking-tight">
-                        {result?.summary?.totalDemand}
+                        {formatNumber(result?.summary?.totalDemand)}
                       </p>
                     </div>
                     <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-5">
@@ -384,7 +325,7 @@ function App() {
                         Total Allocated
                       </p>
                       <p className="mt-1 text-3xl font-bold text-slate-900 tracking-tight">
-                        {result?.summary?.totalAllocated}
+                        {formatNumber(result?.summary?.totalAllocated)}
                       </p>
                     </div>
                     <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-5">
@@ -398,140 +339,12 @@ function App() {
                             : "text-emerald-600"
                         }`}
                       >
-                        {result?.summary?.totalShortage}
+                        {formatNumber(result?.summary?.totalShortage)}
                       </p>
                     </div>
                   </div>
                 )}
               </section>
-
-              {result && (
-                <section className="bg-white rounded-xl shadow-sm p-6 transition duration-150 hover:shadow-md border border-slate-100">
-                  <h2 className="mb-4 text-lg font-semibold text-gray-800">
-                    Recommended Actions
-                  </h2>
-                  <div className="space-y-3">
-                    {(() => {
-                      const deficit = result.summary.totalShortage;
-                      if (deficit <= 0) {
-                        return (
-                          <div className="flex items-center text-emerald-600 font-bold text-sm bg-emerald-50/50 p-4 rounded-lg border border-emerald-100">
-                            <span className="mr-2 text-lg">✅</span>
-                            Resources are balanced. No immediate action required.
-                          </div>
-                        );
-                      }
-
-                      const actions = [];
-                      const allocation = result.allocation || [];
-
-                      const highPriority = allocation.filter(a => a.priority === 'critical' || a.priority === 'high');
-                      const lowPriority = allocation.filter(a => a.priority === 'low' || a.priority === 'medium');
-
-                      lowPriority.forEach(agent => {
-                        if (agent.allocated > 15) {
-                          const reduction = Math.min(10, Math.floor(agent.allocated * 0.12));
-                          actions.push({
-                            type: 'reduce',
-                            text: `⚠ Reduce ${agent.name} allocation by ${reduction} units to free up capacity.`
-                          });
-                        }
-                      });
-
-                      highPriority.forEach(agent => {
-                        if (agent.shortage) {
-                          actions.push({
-                            type: 'increase',
-                            text: `✅ Increase allocation to ${agent.name} to resolve critical shortage.`
-                          });
-                        }
-                      });
-
-                      const sortedActions = [...actions].sort((a, b) => (a.type === 'increase' ? -1 : 1)).slice(0, 5);
-
-                      return sortedActions.map((action, idx) => (
-                        <div key={idx} className={`rounded-lg p-4 text-sm font-semibold transition-all duration-200 hover:scale-[1.01] ${
-                          action.type === 'increase' ? 'bg-emerald-50 text-emerald-800 border border-emerald-100 shadow-sm shadow-emerald-50' : 'bg-amber-50 text-amber-800 border border-amber-100 shadow-sm shadow-amber-50'
-                        }`}>
-                          {action.text}
-                        </div>
-                      ));
-                    })()}
-                  </div>
-                </section>
-              )}
-
-              {result && beforeOptimization && (
-                <section className="bg-white rounded-xl shadow-sm p-6 transition duration-150 hover:shadow-md border border-slate-100">
-                  <h2 className="mb-6 text-lg font-semibold text-gray-800">
-                    Optimization Impact
-                  </h2>
-                  
-                  <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <div className="rounded-lg bg-slate-50 p-4 border border-slate-100">
-                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">System Deficit</p>
-                      <div className="mt-2 flex items-baseline space-x-2">
-                        <span className="text-lg font-medium text-slate-400 line-through tracking-tight">{beforeOptimization.summary.totalShortage}</span>
-                        <span className="text-2xl font-bold text-emerald-600 tracking-tight">{result.summary.totalShortage}</span>
-                      </div>
-                      <p className="mt-1 text-xs font-bold text-emerald-600">
-                        Net improvement: {beforeOptimization.summary.totalShortage - result.summary.totalShortage} units
-                      </p>
-                    </div>
-                    
-                    <div className="rounded-lg bg-slate-50 p-4 border border-slate-100">
-                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Allocated Power</p>
-                      <div className="mt-2 flex items-baseline space-x-2">
-                        <span className="text-lg font-medium text-slate-400 tracking-tight">{beforeOptimization.summary.totalAllocated}</span>
-                        <span className="text-xl font-bold text-slate-700">→</span>
-                        <span className="text-2xl font-bold text-slate-900 tracking-tight">{result.summary.totalAllocated}</span>
-                      </div>
-                    </div>
-
-                    <div className="rounded-lg bg-slate-50 p-4 border border-slate-100">
-                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Critical Status</p>
-                      <div className="mt-2 flex items-baseline space-x-2">
-                        <span className="text-lg font-medium text-slate-400 tracking-tight">{beforeOptimization.summary.criticalShortageCount}</span>
-                        <span className="text-xl font-bold text-slate-700">→</span>
-                        <span className={`text-2xl font-bold tracking-tight ${result.summary.criticalShortageCount < beforeOptimization.summary.criticalShortageCount ? 'text-emerald-600' : 'text-slate-900'}`}>
-                          {result.summary.criticalShortageCount}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs text-slate-500 font-bold">Critical shortages resolved</p>
-                    </div>
-                  </div>
-
-                  <div className="overflow-hidden rounded-lg border border-slate-100">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                        <tr>
-                          <th className="px-5 py-4">Service Name</th>
-                          <th className="px-5 py-4">Before</th>
-                          <th className="px-5 py-4">After</th>
-                          <th className="px-5 py-4 text-right">Change</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-slate-700">
-                        {result.allocation.map((agent) => {
-                          const prev = beforeOptimization.allocation.find(a => a.name === agent.name);
-                          const diff = agent.allocated - (prev?.allocated || 0);
-                          
-                          return (
-                            <tr key={agent.name} className="hover:bg-slate-50 transition-colors group">
-                              <td className="px-5 py-4 font-bold text-slate-800">{agent.name}</td>
-                              <td className="px-5 py-4 text-slate-400 font-medium">{prev?.allocated}</td>
-                              <td className="px-5 py-4 font-extrabold text-slate-900">{agent.allocated}</td>
-                              <td className={`px-5 py-4 text-right font-extrabold ${diff > 0 ? 'text-emerald-600' : diff < 0 ? 'text-red-500' : 'text-slate-300'}`}>
-                                {diff > 0 ? `↑ +${diff}` : diff < 0 ? `↓ ${diff}` : '—'}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-              )}
 
               <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
                 <section className="bg-white rounded-xl shadow-sm p-6 transition duration-150 hover:shadow-md border border-slate-100">
@@ -572,16 +385,13 @@ function App() {
                             const agent = result.allocation.find(a => a.name === payload.value);
                             if (!agent) return null;
                             const status = getServiceStatus(agent.allocated, agent.demand);
-                            const emoji = status.label === "Critical" ? "🔴" : status.label === "Warning" ? "🟡" : "🟢";
                             
                             return (
                               <g transform={`translate(${x},${y})`}>
                                 <text x={-135} y={0} dy={4} textAnchor="start" fill="#475569" fontSize={11} fontWeight={700}>
                                   {payload.value.length > 15 ? `${payload.value.substring(0, 12)}...` : payload.value}
                                 </text>
-                                <text x={-5} y={0} dy={4} textAnchor="end" fontSize={11}>
-                                  {emoji}
-                                </text>
+                                <circle cx={-8} cy={0} r={5} fill={status.dot} />
                               </g>
                             );
                           }}
@@ -600,13 +410,13 @@ function App() {
 
                 <section className="bg-white rounded-xl shadow-sm p-6 transition duration-150 hover:shadow-md border border-slate-100 flex flex-col items-center justify-center">
                   <h2 className="mb-6 text-lg font-semibold text-gray-800 w-full text-left">
-                    Resource Priority Distribution
+                    Allocation Coverage
                   </h2>
                   <div className="h-[320px] w-full flex items-center justify-center">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={priorityData}
+                          data={donutData}
                           dataKey="value"
                           nameKey="name"
                           cx="50%"
@@ -622,15 +432,15 @@ function App() {
                             return `${(percent * 100).toFixed(0)}%`;
                           }}
                         >
-                          {priorityData.map((entry, index) => (
+                          {donutData.map((entry, index) => (
                             <Cell
                               key={index}
-                              fill={PRIORITY_STYLES[entry.name].chart}
+                              fill={DONUT_COLORS[entry.name]}
                             />
                           ))}
                         </Pie>
                         <Tooltip 
-                          formatter={(value, name, props) => [props.payload.originalValue, name]}
+                          formatter={(value, name) => [formatNumber(value), name]}
                           contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: '600' }}
                         />
                         <Legend 
@@ -638,8 +448,8 @@ function App() {
                           height={36} 
                           iconType="circle"
                           formatter={(value) => {
-                            const original = priorityData.find(d => d.name === value);
-                            return `${value} (${original?.originalValue || 0})`;
+                            const original = donutData.find((item) => item.name === value);
+                            return `${value} (${formatNumber(original?.value || 0)})`;
                           }}
                         />
                         <text
@@ -649,7 +459,7 @@ function App() {
                           dominantBaseline="middle"
                           className="text-3xl font-extrabold fill-slate-900 tracking-tight"
                         >
-                          {result?.summary?.totalShortage}
+                          {formatNumber(result?.summary?.totalShortage)}
                         </text>
                         <text
                           x="50%"
@@ -675,7 +485,7 @@ function App() {
                     return (
                       <div
                         key={agent.name}
-                        className={`rounded-xl border-l-4 ${styles.border} ${styles.bg} p-6 shadow-sm transition duration-150 hover:shadow-md cursor-pointer ${highlightedAgents.includes(agent.name) ? "ring-2 ring-emerald-400 ring-offset-2 scale-[1.02]" : ""}`}
+                        className={`rounded-xl border-l-4 ${styles.border} ${styles.bg} p-6 shadow-sm transition duration-150 hover:shadow-md cursor-pointer`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
@@ -685,7 +495,10 @@ function App() {
                             {(() => {
                               const status = getServiceStatus(agent.allocated, agent.demand);
                               return (
-                                <span className={`rounded border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest ${status.color}`}>
+                                <span
+                                  className="rounded border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest"
+                                  style={{ backgroundColor: status.bg, color: status.text }}
+                                >
                                   {status.label}
                                 </span>
                               );
@@ -701,12 +514,12 @@ function App() {
                         <div className="mt-4 flex items-center space-x-10 text-sm text-slate-700">
                           <div className="flex flex-col">
                             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Demand</span>
-                            <span className="mt-1 text-base font-bold text-slate-800">{agent.demand}</span>
+                            <span className="mt-1 text-base font-bold text-slate-800">{formatNumber(agent.demand)}</span>
                           </div>
                           <div className="flex flex-col">
                             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Allocated</span>
-                            <span className={`mt-1 text-base font-extrabold transition-all duration-500 ${highlightedAgents.includes(agent.name) ? "text-emerald-600 scale-110" : "text-slate-800"}`}>
-                              {agent.allocated}
+                            <span className="mt-1 text-base font-extrabold text-slate-800">
+                              {formatNumber(agent.allocated)}
                             </span>
                           </div>
                         </div>
@@ -714,7 +527,7 @@ function App() {
                         {agent.shortage && (
                           <div className="mt-4 flex items-center font-bold text-red-600 text-sm bg-red-100/50 w-fit px-3 py-1 rounded-full border border-red-100">
                             <span className="mr-1.5">⚠</span>
-                            Shortage: {agent.shortageAmount}
+                            Shortage: {formatNumber(agent.shortageAmount)}
                           </div>
                         )}
 
@@ -744,41 +557,6 @@ function App() {
                 </div>
               </section>
 
-              <section className="bg-white rounded-xl shadow-sm p-6 transition duration-150 hover:shadow-md border border-slate-100">
-                <h2 className="mb-4 text-lg font-semibold text-slate-800 flex items-center">
-                  AI Tactical Recommendations
-                </h2>
-                <div className="space-y-3">
-                  {(() => {
-                    const recommendations = [];
-                    const criticalShortages = result.allocation.filter(item => item.priority === "critical" && item.shortage);
-                    const highShortages = result.allocation.filter(item => item.priority === "high" && item.shortage);
-
-                    if (criticalShortages.length > 0) {
-                      recommendations.push("Increase allocation to critical services immediately to prevent system failure.");
-                    }
-                    if (highShortages.length > 0) {
-                      recommendations.push("Rebalance resources from medium/low priority services to cover high-priority gaps.");
-                    }
-                    if (result.summary.totalShortage > 0) {
-                      recommendations.push("Current demand exceeds supply. Consider increasing total power supply capacity.");
-                    }
-                    if (recommendations.length === 0) {
-                      recommendations.push("System allocation is currently optimal. No immediate intervention required.");
-                    }
-
-                    return recommendations.map((rec, index) => (
-                      <div
-                        key={index}
-                        className="bg-blue-50 border border-blue-100 text-blue-700 p-5 rounded-xl flex items-start gap-4 transition-all duration-200 hover:bg-blue-100/50 cursor-pointer shadow-sm shadow-blue-50/50"
-                      >
-                        <span className="text-xl">🧠</span>
-                        <p className="text-sm font-bold leading-relaxed">{rec}</p>
-                      </div>
-                    ));
-                  })()}
-                </div>
-              </section>
             </div>
           )}
         </main>

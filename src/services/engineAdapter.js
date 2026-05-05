@@ -9,12 +9,22 @@ function isValidInput(input) {
   );
 }
 
-function getAgentDemand(agent, severity) {
-  if (typeof agent.baseDemand === 'number' && typeof severity === 'number') {
-    return agent.baseDemand * (1 + severity / 10);
+function getSeverityMultiplier(agent, severity) {
+  if (agent.priority === 'critical') {
+    return 1 + severity / 8;
   }
 
-  return agent.demand ?? 0;
+  return 1 + severity / 12;
+}
+
+function getAgentDemand(agent, severity) {
+  const baseDemand = agent.demand ?? agent.baseDemand;
+
+  if (typeof baseDemand === 'number' && typeof severity === 'number') {
+    return baseDemand * getSeverityMultiplier(agent, severity);
+  }
+
+  return 0;
 }
 
 function addShortageMetadata(input, allocationResult) {
